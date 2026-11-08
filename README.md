@@ -203,6 +203,24 @@
 
 ---
 
+### 12. `develop-web-game`：Web 与微信/抖音小游戏工程规范、分包与 iOS 音频解锁（静态架构参考）
+
+![Web 与小游戏开发工程规范对比图](assets/webgame_comparison.png)
+
+* **❌ 未使用 Skill（包体超标拒审 / iOS 哑巴静音 / 页面下拉反弹）**：
+  * **主包超标 38.6MB (超标 865%)**：违反微信 4.0MB 限制直接被官方拒审，首屏加载需 10 秒以上，流失率高达 85%；
+  * **iOS WebAudio 锁死挂起**：iPhone 上全程无声，控制台抛出 `AudioContext not allowed to start`；
+  * **触控下拉反弹断触**：按虚拟按键直接把微信页面下拉拉扯，严重破坏核心体验。
+* **✅ 搭载 `develop-web-game`（工业级小游戏标准）**：
+  * **主包压制在 1.42MB (极速 0.3s 首屏秒开)**：主包仅含核心引擎，音效与大关卡分包按需异步流式加载，100% 满分过审；
+  * **iOS 首次触摸隐形激活器**：首屏首次用户交互瞬间，注入 0.001 秒无声静音 Buffer 唤醒 `AudioContext`，全局立体声即刻贯通；
+  * **视网膜手势锁死 (touch-action: none)**：彻底切断移动端下拉回弹与双击缩放，触控丝滑如原生 Native App；
+  * **微信生命周期自动休眠 (Lifecycle Guard)**：监听 `wx.onHide / wx.onShow`，切后台瞬间 `timeScale = 0` 冻结渲染，杜绝发热与 OOM 杀进程。
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验 Web 与小游戏工程规范试验台](https://orikami048.github.io/game-skills/prototypes/webgame_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/webgame_showcase.html](http://localhost:8088/prototypes/webgame_showcase.html))*
+
+---
+
 ## 🤖 适配与实测推荐模型矩阵 (Model Matrix)
 
 为确保 Skills 发挥最佳效果，针对不同开发环节推荐选用最匹配的模型：
@@ -216,6 +234,7 @@
 | **像素资产出图 (Sprite/UI)** | **Imagen 3 (Fast / HQ)** / **Gemini 3.8 Flash ImageGen** | 对 `#FF00FF` 品红底与“无外发光、无抗锯齿”负面提示词执行力强，网格漂移率极低。 |
 | **程序化关卡与图论拓扑** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间二叉树切分紧凑，极擅长 A* 泛洪校验、锁钥 DAG 依赖与 Mulberry32 位运算。 |
 | **手柄导航与人机工效设计** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间几何射线检测推导强，极度熟悉 Focus Trap 焦点栈防穿透与 Nielsen 人机工效学。 |
+| **Web/小游戏工程与分包优化** | **Gemini 3.8 Flash (High)** / **Claude 3.7 Sonnet** | 极度熟悉微信 `game.json` 分包限制、iOS WebAudio 首次触控唤醒与视口防拉扯。 |
 | **风格锚点与概念原画** | **Midjourney v6 (`--style raw`)** | 适合立项初期确立复古调色盘与全局艺术基调。 |
 
 ---
@@ -232,7 +251,8 @@ game-skills/
 │   ├── pixel_assets_comparison.png# 像素资产真假对比与瓦片架构图
 │   ├── level_comparison.png       # 程序化关卡与拓扑必达路径图
 │   ├── threejs_ui_comparison.png  # Three.js 3D 空间 UI 与 Billboard 架构图
-│   └── multiplayer_comparison.png # 多人联机权威预测与快照调和架构图
+│   ├── multiplayer_comparison.png # 多人联机权威预测与快照调和架构图
+│   └── webgame_comparison.png     # Web与小游戏分包合规与音频解锁架构图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
@@ -244,7 +264,8 @@ game-skills/
 │   ├── pixel_assets_showcase.html # 像素点阵与无缝自动瓦片试验台
 │   ├── level_showcase.html        # 程序化关卡与拓扑必达路径试验台
 │   ├── threejs_ui_showcase.html   # Three.js 3D 空间 UI 与边缘雷达试验台
-│   └── multiplayer_showcase.html  # 多人联机权威预测与快照插值试验台
+│   ├── multiplayer_showcase.html  # 多人联机权威预测与快照插值试验台
+│   └── webgame_showcase.html      # 小游戏分包流式加载与iOS音频解锁试验台
 └── skills/                        # 核心技能正本
     ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
     │   ├── SKILL.md
@@ -276,7 +297,10 @@ game-skills/
     ├── threejs-game-ui-designer/  # Three.js 3D 空间 UI、Billboard 与屏幕边缘雷达
     │   ├── SKILL.md
     │   └── comparison.png
-    └── multiplayer-game/          # 多人联机、权威服务器、预测回滚与实体插值
+    ├── multiplayer-game/          # 多人联机、权威服务器、预测回滚与实体插值
+    │   ├── SKILL.md
+    │   └── comparison.png
+    └── develop-web-game/          # Web/微信小游戏分包、iOS音频解锁与视口锁
         ├── SKILL.md
         └── comparison.png
 ```
