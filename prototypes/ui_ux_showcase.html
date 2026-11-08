@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏 UI/UX 交互体验与焦点系统 (game-ui-ux)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #030712;
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+    
+    .header-card {
+      background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px 20px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;
+    }
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);
+      margin-bottom: 4px;
+    }
+    .title { font-size: 18px; font-weight: 800; color: #fff; }
+    .subtitle { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+    .mode-switch {
+      display: flex; background: #030712; padding: 4px; border-radius: 8px; border: 1px solid #1f2937; gap: 6px;
+    }
+    .btn-mode {
+      padding: 6px 14px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: 700;
+      transition: all 0.15s ease; color: #9ca3af; background: transparent;
+    }
+    .btn-mode.active-ux {
+      background: #9333ea; color: #ffffff; box-shadow: 0 4px 12px rgba(147, 51, 234, 0.35);
+    }
+    .btn-mode.active-vanilla {
+      background: #ef4444; color: #ffffff; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
+
+    .viewport-box {
+      background: #111827; border: 2px solid #1f2937; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); position: relative;
+    }
+    .viewport-header {
+      padding: 10px 18px; background: rgba(17, 24, 39, 0.85); border-bottom: 1px solid #1f2937;
+      display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+    }
+
+    /* 战斗视窗 */
+    .battle-screen {
+      position: relative; width: 100%; height: 380px; background: #050814; overflow: hidden;
+    }
+
+    /* 模式 A：普通 AI 的四角散乱 HUD (视线严重拉扯) */
+    .hud-corner-tl { position: absolute; top: 16px; left: 16px; }
+    .hud-corner-tr { position: absolute; top: 16px; right: 16px; }
+    .hud-corner-bl { position: absolute; bottom: 16px; left: 16px; }
+    .hud-corner-br { position: absolute; bottom: 16px; right: 16px; }
+
+    /* 模式 B：搭载 game-ui-ux 的核心环形视野与边缘指示器 */
+    .hud-anchor-center {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .threat-indicator {
+      position: absolute; width: 24px; height: 24px; color: #ef4444;
+      font-size: 18px; font-weight: bold; animation: pulse-threat 0.8s infinite;
+    }
+    @keyframes pulse-threat {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.6; }
+    }
+
+    /* 手柄/键盘焦点系统展示 (Focus Management) */
+    .focus-panel {
+      background: #090d16; border-top: 1px solid #1f2937; padding: 16px 20px;
+    }
+    .focus-title {
+      font-size: 13px; font-weight: 700; color: #c084fc; margin-bottom: 10px; display: flex; justify-content: space-between;
+    }
+    .focus-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .focus-btn {
+      background: #1e293b; border: 2px solid #334155; border-radius: 8px; padding: 12px;
+      color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center;
+      transition: all 0.15s ease; outline: none; position: relative;
+    }
+    /* 核心：高对比度、无障碍手柄选中焦点光环 */
+    .focus-btn.focused {
+      border-color: #c084fc !important;
+      box-shadow: 0 0 0 3px rgba(192, 132, 252, 0.4), 0 0 15px rgba(168, 85, 247, 0.5);
+      background: #3b0764 !important;
+      transform: scale(1.04);
+    }
+    .focus-btn:hover { border-color: #64748b; }
+
+    /* 拒绝摇晃动画 (Error Shake) */
+    @keyframes error-shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .shake-error {
+      animation: error-shake 0.35s ease-in-out;
+      border-color: #ef4444 !important;
+      color: #f87171 !important;
+    }
+
+    /* 技能就绪光效 (Readiness Sheen) */
+    @keyframes sheen-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+    }
+    .ready-sheen {
+      animation: sheen-pulse 1.2s infinite;
+      border-color: #4ade80 !important;
+    }
+
+    /* 弹窗蒙层与焦点陷阱 */
+    .modal-backdrop {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-box {
+      width: 380px; background: #0f172a; border: 2px solid #a855f7; border-radius: 12px; padding: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 14px;
+    }
+
+    /* 仪表盘 */
+    .dashboard-bar {
+      background: #020617; border-top: 1px solid #1f2937; padding: 14px 20px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; font-family: monospace; font-size: 11px;
+    }
+    .dash-label { color: #9ca3af; margin-bottom: 2px; }
+    .dash-val { font-size: 15px; font-weight: 800; }
+
+    /* 深度剖析 */
+    .grid-cards {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    .analysis-card {
+      background: #111827; border: 1px solid #1f2937; border-radius: 10px; padding: 14px 16px;
+      font-size: 12px; line-height: 1.5;
+    }
+    .analysis-title {
+      font-weight: 700; color: #c084fc; margin-bottom: 8px; border-bottom: 1px solid #1f2937; padding-bottom: 6px;
+    }
+    @media (max-width: 768px) {
+      .focus-grid { grid-template-columns: repeat(2, 1fr); }
+      .dashboard-bar { grid-template-columns: repeat(2, 1fr); }
+      .grid-cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- 顶部导航 -->
+    <div class="header-card">
+      <div>
+        <div class="badge">Skill 08 实机体验评测</div>
+        <div class="title">game-ui-ux：游戏交互体验与人机工效学对比</div>
+        <div class="subtitle">战斗视觉热区认知、手柄/键盘空间焦点锁死 (Focus Trap)、操作示能与拒绝震颤反馈</div>
+      </div>
+
+      <div class="mode-switch">
+        <button id="btnVanilla" class="btn-mode">
+          ❌ 未使用 Skill (四角散乱/手柄丢焦)
+        </button>
+        <button id="btnUx" class="btn-mode active-ux">
+          🔥 搭载 game-ui-ux (核心视野/焦点空间导航)
+        </button>
+      </div>
+    </div>
+
+    <!-- 核心战斗主视窗 -->
+    <div class="viewport-box">
+      <div class="viewport-header">
+        <div id="modeStatusText">
+          <strong style="color: #c084fc;">当前 UX 架构：🔥 搭载 game-ui-ux (中央微弱血环锚点 + 屏幕边缘威胁预警)</strong>
+        </div>
+        <div style="font-size: 11px; color: #9ca3af;">
+          支持按键盘 [↑ ↓ ← → 方向键] 体验手柄空间焦点漫游
+        </div>
+      </div>
+
+      <div class="battle-screen" id="battleScreen">
+        <!-- 动态渲染战斗场景与 HUD -->
+        <div id="hudLayer"></div>
+
+        <!-- 弹窗 (演示焦点陷阱 Focus Trap) -->
+        <div id="modalLayer" class="modal-backdrop" style="display: none;">
+          <div class="modal-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
+              <span style="font-size: 13px; font-weight: bold; color: #fff;">系统设置 / 暂停菜单</span>
+              <span style="font-size: 10px; color: #a855f7; font-family: monospace;">[焦点已陷入锁死]</span>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8;">
+              在【搭载 game-ui-ux】下，手柄按键无法点穿到背景游戏层，焦点被严格限制在内部两个选项中循环。
+            </p>
+            <div style="display: flex; gap: 10px;">
+              <button id="btnModalConfirm" class="focus-btn focused" style="flex: 1;">确认 (Enter)</button>
+              <button id="btnModalCancel" class="focus-btn" style="flex: 1;">取消 (Esc)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 手柄与键盘焦点导航区 (Focus Management) -->
+      <div class="focus-panel">
+        <div class="focus-title">
+          <span>🎮 手柄与键盘焦点系统 (Spatial Navigation & Affordance)</span>
+          <span style="font-size: 11px; color: #9ca3af;">[按方向键导航 / 点击测试技能拒绝震颤]</span>
+        </div>
+
+        <div class="focus-grid" id="focusButtonsRow">
+          <button class="focus-btn focused" data-idx="0" id="slotA">
+            ⚔️ 普通攻击 (J)<br><span style="font-size: 10px; color: #94a3b8;">常态可用</span>
+          </button>
+          <button class="focus-btn" data-idx="1" id="slotB">
+            🔥 裂地烈焰 (K)<br><span style="font-size: 10px; color: #f87171;">冷却中 (点击测试拒绝)</span>
+          </button>
+          <button class="focus-btn ready-sheen" data-idx="2" id="slotC">
+            ⚡ 闪电护盾 (L)<br><span style="font-size: 10px; color: #4ade80;">就绪呼吸光效</span>
+          </button>
+          <button class="focus-btn" data-idx="3" id="slotD">
+            ⚙️ 打开菜单 (M)<br><span style="font-size: 10px; color: #c084fc;">测试弹窗焦点陷阱</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 实时体验指标 -->
+      <div class="dashboard-bar">
+        <div>
+          <div class="dash-label">视线转动半径 (Eye Saccade)</div>
+          <div id="valSaccade" class="dash-val" style="color: #4ade80;">紧凑 (中心 120px 核心环)</div>
+        </div>
+        <div>
+          <div class="dash-label">手柄空间导航状态</div>
+          <div id="valNav" class="dash-val" style="color: #c084fc;">高亮光环锁定 (无丢焦)</div>
+        </div>
+        <div>
+          <div class="dash-label">弹窗焦点安全性</div>
+          <div id="valTrap" class="dash-val" style="color: #38bdf8;">Focus Trap 阻断穿透</div>
+        </div>
+        <div>
+          <div class="dash-label">操作示能与拒绝反馈</div>
+          <div id="valAffordance" class="dash-val" style="color: #fbbf24;">带位移摇晃 (Error Shake)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 理论深度剖析卡片 -->
+    <div class="grid-cards">
+      <div class="analysis-card">
+        <div class="analysis-title">👀 1. 视网膜工效学：中心热区 vs 四角视线拉扯</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 把血条放最左上角，小地图放右上角，技能在右下角。战斗激烈时玩家眼球必须疯狂扫视四角，<strong>根本来不及看地上的危险预警直接暴毙</strong>。</p>
+        <p style="color: #c084fc;"><strong>✅ 专项 Skill：</strong> 遵循 <strong>人眼核心 FOV 热区规范</strong>。角色脚底放置极简弧形动态血条，屏幕四角非关键信息采用动态隐退（Auto-fade），视线焦点永不偏离战场中心。</p>
+      </div>
+
+      <div class="analysis-card">
+        <div class="analysis-title">🎮 2. 手柄空间导航 (Spatial Nav) 与焦点陷阱</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 只写了鼠标点击 <code>onClick</code>。手柄或键盘切选项时光标丢失；弹窗出来后按手柄按键，<strong>把背景里的战斗技能点穿了（Focus Leak）</strong>。</p>
+        <p style="color: #c084fc;"><strong>✅ 专项 Skill：</strong> 建立 <strong>状态机焦点管理器</strong>。弹窗激活时触发 <strong>Focus Trap（焦点陷阱）</strong> 锁死按键，阻断背景穿透；退出后自动记忆并恢复原按钮焦点。</p>
+      </div>
+
+      <div class="analysis-card">
+        <div class="analysis-title">📳 3. 操作示能与拒绝震颤 (Error Shake)</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 技能在 CD 冷却时点击毫无反应，玩家以为按钮失灵或者游戏卡死，疯狂无脑狂搓键盘。</p>
+        <p style="color: #c084fc;"><strong>✅ 专项 Skill：</strong> 提供 <strong>明确的生理微反馈</strong>。不可用时点击触发 <strong>0.3s 水平拒绝摇晃（Error Shake）+ 沉闷拒音</strong>；冷却就绪瞬间触发柔和心跳呼吸光效（Readiness Sheen）。</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let mode = 'ux'; // 'vanilla' | 'ux'
+    let currentFocusIdx = 0;
+    const focusButtons = [
+      document.getElementById('slotA'),
+      document.getElementById('slotB'),
+      document.getElementById('slotC'),
+      document.getElementById('slotD')
+    ];
+
+    const hudLayer = document.getElementById('hudLayer');
+    const modalLayer = document.getElementById('modalLayer');
+    let isModalOpen = false;
+    let modalFocusIdx = 0;
+    const modalButtons = [
+      document.getElementById('btnModalConfirm'),
+      document.getElementById('btnModalCancel')
+    ];
+
+    // 渲染 HUD 视窗内容
+    function renderHUD() {
+      if (mode === 'vanilla') {
+        // --- ❌ 普通 AI：四角堆砌，视线严重拉扯 ---
+        hudLayer.innerHTML = `
+          <!-- 左上血条 -->
+          <div class="hud-corner-tl" style="background: #1e293b; border: 1px solid #475569; padding: 8px 12px; border-radius: 6px;">
+            <div style="font-size: 10px; color: #f87171; font-weight: bold;">HP: 320 / 500</div>
+            <div style="width: 140px; height: 8px; background: #0f172a; margin-top: 4px; border-radius: 4px; overflow: hidden;">
+              <div style="width: 64%; height: 100%; background: #ef4444;"></div>
+            </div>
+          </div>
+          <!-- 右上小地图占位 -->
+          <div class="hud-corner-tr" style="width: 70px; height: 70px; background: #0f172a; border: 1px solid #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8;">
+            MINI MAP
+          </div>
+          <!-- 左下聊天与任务 -->
+          <div class="hud-corner-bl" style="background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; padding: 6px 10px; font-size: 10px; color: #9ca3af; border-radius: 4px;">
+            [任务] 击败 50 只暗黑小妖 (12/50)
+          </div>
+          <!-- 右下大量技能图标 -->
+          <div class="hud-corner-br" style="display: flex; gap: 6px;">
+            <div style="width: 32px; height: 32px; background: #334155; border: 1px solid #64748b; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px;">⚔️</div>
+            <div style="width: 32px; height: 32px; background: #334155; border: 1px solid #64748b; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px;">🔥</div>
+            <div style="width: 32px; height: 32px; background: #334155; border: 1px solid #64748b; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px;">🛡️</div>
+          </div>
+          <!-- 战场中心角色 (孤立无援) -->
+          <div class="hud-anchor-center" style="width: 28px; height: 28px; background: #ef4444; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 10px #ef4444;"></div>
+        `;
+      } else {
+        // --- ✅ 搭载 game-ui-ux：核心环形视野 + 边缘威胁感知 ---
+        hudLayer.innerHTML = `
+          <!-- 中心角色脚底环形血条与危险感知 (眼球零位移) -->
+          <div class="hud-anchor-center" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="width: 32px; height: 32px; background: #22c55e; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 14px #22c55e; display: flex; align-items: center; justify-content: center; font-size: 14px;">🧝</div>
+            <!-- 脚底弧形微量血条 -->
+            <div style="width: 48px; height: 4px; background: rgba(0,0,0,0.6); border-radius: 2px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+              <div style="width: 64%; height: 100%; background: #22c55e;"></div>
+            </div>
+          </div>
+
+          <!-- 屏幕右上边缘：屏幕外敌人威胁指示标 (Off-screen Threat Indicator) -->
+          <div class="threat-indicator" style="top: 25px; right: 40px;">
+            ▲ <span style="font-size: 10px; font-family: monospace; color: #f87171;">ENEMY 8m</span>
+          </div>
+
+          <!-- 屏幕左下轻度隐退的极简金币 HUD (无扰动) -->
+          <div class="hud-corner-bl" style="font-family: monospace; font-size: 11px; color: #fbbf24; opacity: 0.6;">
+            💰 1,420 G
+          </div>
+        `;
+      }
+    }
+
+    renderHUD();
+
+    // 更新焦点视觉
+    function updateFocusUI() {
+      if (isModalOpen) {
+        modalButtons.forEach((btn, idx) => {
+          if (idx === modalFocusIdx) btn.classList.add('focused');
+          else btn.classList.remove('focused');
+        });
+        return;
+      }
+
+      focusButtons.forEach((btn, idx) => {
+        if (mode === 'vanilla') {
+          // 普通模式下没有醒目的手柄高亮框 (丢焦典型)
+          btn.classList.remove('focused');
+        } else {
+          if (idx === currentFocusIdx) btn.classList.add('focused');
+          else btn.classList.remove('focused');
+        }
+      });
+    }
+
+    // 键盘空间导航逻辑 (支持左右方向键与 Tab)
+    window.addEventListener('keydown', (e) => {
+      if (isModalOpen) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Tab') {
+          e.preventDefault();
+          modalFocusIdx = (modalFocusIdx === 0) ? 1 : 0;
+          updateFocusUI();
+        }
+        if (e.key === 'Enter' || e.key === 'Escape') {
+          closeModal();
+        }
+        return;
+      }
+
+      if (mode === 'ux') {
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+          currentFocusIdx = (currentFocusIdx + 1) % focusButtons.length;
+          updateFocusUI();
+        } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+          currentFocusIdx = (currentFocusIdx - 1 + focusButtons.length) % focusButtons.length;
+          updateFocusUI();
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          focusButtons[currentFocusIdx].click();
+        }
+      }
+    });
+
+    // 按钮交互与拒绝震颤
+    document.getElementById('slotA').addEventListener('click', () => {
+      // 常态可用
+    });
+
+    document.getElementById('slotB').addEventListener('click', function() {
+      // 冷却中，触发 Error Shake 拒绝震颤
+      this.classList.remove('shake-error');
+      void this.offsetWidth; // 触发 reflow 重置动画
+      this.classList.add('shake-error');
+      setTimeout(() => this.classList.remove('shake-error'), 400);
+    });
+
+    document.getElementById('slotC').addEventListener('click', () => {
+      // 护盾技能
+    });
+
+    document.getElementById('slotD').addEventListener('click', () => {
+      openModal();
+    });
+
+    // 弹窗逻辑
+    function openModal() {
+      isModalOpen = true;
+      modalLayer.style.display = 'flex';
+      modalFocusIdx = 0;
+      updateFocusUI();
+      document.getElementById('valTrap').innerText = 'Focus Trap 已激活锁死';
+      document.getElementById('valTrap').style.color = '#c084fc';
+    }
+
+    function closeModal() {
+      isModalOpen = false;
+      modalLayer.style.display = 'none';
+      updateFocusUI();
+      document.getElementById('valTrap').innerText = '常态就绪';
+      document.getElementById('valTrap').style.color = '#38bdf8';
+    }
+
+    document.getElementById('btnModalConfirm').addEventListener('click', closeModal);
+    document.getElementById('btnModalCancel').addEventListener('click', closeModal);
+
+    // 模式切换
+    const btnVanilla = document.getElementById('btnVanilla');
+    const btnUx = document.getElementById('btnUx');
+    const modeStatusText = document.getElementById('modeStatusText');
+
+    btnVanilla.addEventListener('click', () => {
+      mode = 'vanilla';
+      btnVanilla.className = 'btn-mode active-vanilla';
+      btnUx.className = 'btn-mode';
+      modeStatusText.innerHTML = '<strong style="color: #f87171;">当前 UX 架构：❌ 未使用 Skill (四角散乱拉扯视线 / 无手柄焦点陷阱)</strong>';
+      renderHUD();
+      updateFocusUI();
+
+      document.getElementById('valSaccade').innerText = '发散拉扯 (全屏四角 800px)';
+      document.getElementById('valSaccade').style.color = '#f87171';
+      document.getElementById('valNav').innerText = '丢失 (纯依赖鼠标鼠标点选)';
+      document.getElementById('valNav').style.color = '#f87171';
+      document.getElementById('valTrap').innerText = '未防护 (手柄穿透背部)';
+      document.getElementById('valTrap').style.color = '#f87171';
+      document.getElementById('valAffordance').innerText = '无响应 (按键发呆)';
+      document.getElementById('valAffordance').style.color = '#f87171';
+    });
+
+    btnUx.addEventListener('click', () => {
+      mode = 'ux';
+      btnUx.className = 'btn-mode active-ux';
+      btnVanilla.className = 'btn-mode';
+      modeStatusText.innerHTML = '<strong style="color: #c084fc;">当前 UX 架构：🔥 搭载 game-ui-ux (中央微弱血环锚点 + 屏幕边缘威胁预警)</strong>';
+      renderHUD();
+      updateFocusUI();
+
+      document.getElementById('valSaccade').innerText = '紧凑 (中心 120px 核心环)';
+      document.getElementById('valSaccade').style.color = '#4ade80';
+      document.getElementById('valNav').innerText = '高亮光环锁定 (无丢焦)';
+      document.getElementById('valNav').style.color = '#c084fc';
+      document.getElementById('valTrap').innerText = 'Focus Trap 阻断穿透';
+      document.getElementById('valTrap').style.color = '#38bdf8';
+      document.getElementById('valAffordance').innerText = '带位移摇晃 (Error Shake)';
+      document.getElementById('valAffordance').style.color = '#fbbf24';
+    });
+  </script>
+</body>
+</html>

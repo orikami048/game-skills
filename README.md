@@ -113,6 +113,23 @@
 
 ---
 
+### 7. `game-ui-ux`：游戏人机工效学、战斗 HUD 视觉热区与手柄空间焦点（静态架构参考）
+
+![游戏 UI/UX 交互体验与人机工效学模型参考图](assets/ui_ux_comparison.png)
+
+* **❌ 未使用 Skill（四角堆砌 / 视线拉扯 / 手柄丢焦穿透）**：
+  * **视野隧道现象（Tunnel Vision）**：血条死死锁在左上角、小地图在右上角、技能在右下角，打怪走位时眼球在 800px 广阔屏幕间疲劳拉扯，玩家经常“根本不知道自己怎么暴毙的”；
+  * **手柄丢焦与输入穿透（Focus Leak）**：二级弹窗（确认/暂停）弹出后，手柄确认键直接穿透背景触发了角色挥刀或大招释放；且无法使用十字键顺畅导航按钮。
+* **✅ 搭载 `game-ui-ux`（工业级主机人机工效标准）**：
+  * **核心视野环（Inner Anchor）**：角色脚底微弧形动态血量与耐力指示，视线 0 位移；屏幕外高威胁敌人投影边缘雷达三角标（Off-screen Indicators），提供充裕闪避反应时间；
+  * **空间几何焦点导航（Spatial Navigation）**：支持手柄十字键/键盘 Tab 沿视线方向寻找最近邻居按钮，自适应高亮焦点光环；
+  * **绝对焦点陷阱（Focus Trap）**：模态弹窗唤起瞬间强制捕获全部输入流，物理切断底层世界响应，关闭后毫秒级光标记忆复位；
+  * **操作示能与拒绝摇晃（Error Shake）**：CD 冷却中点击触发 0.35s 真实物理横向摇晃与拒绝音效，就绪瞬间呼吸扫光，消除玩家“游戏是不是卡死”的焦虑。
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验 UI/UX 人机工效与手柄焦点试验台](https://orikami048.github.io/game-skills/prototypes/ui_ux_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/ui_ux_showcase.html](http://localhost:8088/prototypes/ui_ux_showcase.html))*
+
+---
+
 ## 🤖 适配与实测推荐模型矩阵 (Model Matrix)
 
 为确保 Skills 发挥最佳效果，针对不同开发环节推荐选用最匹配的模型：
@@ -122,6 +139,7 @@
 | **代码实现与手感逻辑** | **Gemini 3.8 Flash (High)**<br>*(实操验证推荐)* | 响应迅速，逻辑严密。能准确理解 60FPS 游戏循环中的顿帧挂起、阻尼摩擦力数学公式与 0ms 像素位移。 |
 | **高复杂度底层系统与网络** | **Claude 3.7 Sonnet** / **Gemini 3.8 Pro** | 适合生成复杂的 Modifier 属性管线、Godot/Unity HLSL 像素着色器以及多人帧同步/预测回滚逻辑。 |
 | **像素资产出图 (Sprite/UI)** | **Imagen 3 (Fast / HQ)** / **Gemini 3.8 Flash ImageGen** | 对 `#FF00FF` 品红底与“无外发光、无抗锯齿”负面提示词执行力强，网格漂移率极低。 |
+| **手柄导航与人机工效设计** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间几何射线检测推导强，极度熟悉 Focus Trap 焦点栈防穿透与 Nielsen 人机工效学。 |
 | **风格锚点与概念原画** | **Midjourney v6 (`--style raw`)** | 适合立项初期确立复古调色盘与全局艺术基调。 |
 
 ---
@@ -133,14 +151,16 @@ game-skills/
 ├── README.md                      # 项目简介（实机对比、模型推荐与试玩导航）
 ├── assets/                        # 高清对比截图
 │   ├── ui_comparison.png          # 16-Bit UI 左右分屏实机对比
-│   └── feel_comparison.png        # Game Feel 高能打击感命中实机图
+│   ├── feel_comparison.png        # Game Feel 高能打击感命中实机图
+│   └── ui_ux_comparison.png       # UI/UX 人机工效与手柄焦点架构图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
 │   ├── developer_showcase.html    # 通用开发基建试验台 (跨端输入抽象/固定步长防穿模)
 │   ├── theory_showcase.html       # 策划理论心流试验台 (心流黄金通道/正负权衡抉择)
 │   ├── ui_showcase.html           # 16-Bit UI 交互原型 (SFC 边框/4px下沉/扫描线)
-│   └── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
+│   ├── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
+│   └── ui_ux_showcase.html        # UI/UX 人机工效与焦点陷阱试验台
 └── skills/                        # 核心技能正本
     ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
     │   ├── SKILL.md
@@ -157,9 +177,12 @@ game-skills/
     ├── game-ui-design/            # 16-Bit 游戏 UI 规范与九宫格边框
     │   ├── SKILL.md
     │   └── comparison.gif
-    └── game-feel/                 # 游戏手感、顿帧、震屏与受击反馈算法
+    ├── game-feel/                 # 游戏手感、顿帧、震屏与受击反馈算法
+    │   ├── SKILL.md
+    │   └── comparison.gif
+    └── game-ui-ux/                # 游戏 UI/UX 交互人机工效与手柄空间焦点
         ├── SKILL.md
-        └── comparison.gif
+        └── comparison.png
 ```
 
 ---
