@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>16-Bit 游戏 UI 设计效果对比演示</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* 基础重置与无抗锯齿像素渲染 */
+    .pixelated {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* 模式 A：现代伪像素样式（违和感典型） */
+    .fake-pixel-card {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 2px solid #64748b;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fake-btn {
+      background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);
+    }
+    .fake-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px -2px rgba(59, 130, 246, 0.6);
+      filter: brightness(1.1);
+    }
+
+    /* 模式 B：正统 16-Bit SFC/SNES 黄金时代 UI 规范 */
+    /* 纯 CSS 模拟 16-bit 双层凸凹镶嵌像素边框 (经典 JRPG 经典深蓝渐变底 + 金属金边) */
+    .snes-frame {
+      background: #0f1744;
+      position: relative;
+      box-shadow: 
+        /* 外层黑像素描边 */
+        0 -4px 0 0 #000,
+        0 4px 0 0 #000,
+        -4px 0 0 0 #000,
+        4px 0 0 0 #000,
+        /* 内层 16-bit 金色双重高光与阴影边框 */
+        inset 4px 4px 0 0 #f6d063,
+        inset -4px -4px 0 0 #6c3f15,
+        inset 8px 8px 0 0 #d99926,
+        inset -8px -8px 0 0 #3d1c06;
+      padding: 16px;
+    }
+
+    /* 16-bit 像素阶梯圆角剪裁（无任何亚像素抗锯齿） */
+    .snes-corner-notch {
+      clip-path: polygon(
+        0 8px, 4px 8px, 4px 4px, 8px 4px, 8px 0,
+        calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px,
+        100% calc(100% - 8px), calc(100% - 4px) calc(100% - 8px), calc(100% - 4px) calc(100% - 4px), calc(100% - 8px) calc(100% - 4px), calc(100% - 8px) 100%,
+        8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px)
+      );
+    }
+
+    /* 16-bit 像素按钮：0ms 平滑，按下纯物理下沉 4px */
+    .snes-btn {
+      position: relative;
+      background: #c53a27;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 900;
+      letter-spacing: 1px;
+      box-shadow: 
+        0 -4px 0 0 #000,
+        0 4px 0 0 #000,
+        -4px 0 0 0 #000,
+        4px 0 0 0 #000,
+        inset 3px 3px 0 0 #ff8e7b,
+        inset -3px -3px 0 0 #5c1106;
+      transition: none; /* 绝对禁止现代渐变过渡 */
+      cursor: pointer;
+    }
+    .snes-btn:hover {
+      background: #e0452f;
+      box-shadow: 
+        0 -4px 0 0 #000,
+        0 4px 0 0 #000,
+        -4px 0 0 0 #000,
+        4px 0 0 0 #000,
+        inset 3px 3px 0 0 #ffb1a2,
+        inset -3px -3px 0 0 #6e1809;
+    }
+    .snes-btn:active {
+      transform: translateY(4px);
+      box-shadow: 
+        0 -2px 0 0 #000,
+        0 2px 0 0 #000,
+        -4px 0 0 0 #000,
+        4px 0 0 0 #000,
+        inset 3px 3px 0 0 #5c1106,
+        inset -3px -3px 0 0 #ff8e7b;
+    }
+
+    /* 装备格子：像素凹陷质感 (Sunken Slot) */
+    .snes-slot {
+      background: #090b20;
+      box-shadow: 
+        0 -2px 0 0 #000,
+        0 2px 0 0 #000,
+        -2px 0 0 0 #000,
+        2px 0 0 0 #000,
+        inset 2px 2px 0 0 #000000,
+        inset -2px -2px 0 0 #283768;
+    }
+    .snes-slot.active {
+      box-shadow: 
+        0 -2px 0 0 #000,
+        0 2px 0 0 #000,
+        -2px 0 0 0 #000,
+        2px 0 0 0 #000,
+        inset 2px 2px 0 0 #ffe066,
+        inset -2px -2px 0 0 #ffe066;
+    }
+
+    /* 经典 CRT 扫描线 (Scanlines Overlay) */
+    .crt-overlay::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);
+      background-size: 100% 4px;
+      z-index: 40;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    /* 像素点阵文字描边 */
+    .pixel-text {
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 900;
+      text-shadow: 
+        2px 2px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        0 2px 0 #000,
+        2px 0 0 #000;
+    }
+
+    /* 像素指示箭头动画 (逐帧硬跳，非平滑) */
+    @keyframes pixel-bounce {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(6px); }
+    }
+    .pixel-pointer {
+      animation: pixel-bounce 0.6s steps(2, start) infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 font-sans antialiased selection:bg-amber-500 selection:text-black">
+
+  <!-- 顶部状态栏与核心控制 -->
+  <div class="max-w-6xl mx-auto mb-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-4 rounded-xl backdrop-blur">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 text-xs font-bold rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Skill 05 实机视效评测</span>
+          <h1 class="text-xl font-bold tracking-tight text-white">game-ui-design：16-Bit 像素风格实战对比</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">测试场景：经典复古 ARPG「角色状态与战利品结算背包」界面</p>
+      </div>
+
+      <!-- 模式切换与辅助功能 -->
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="toggleCrt" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-1.5 transition">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+          CRT 扫描线: <span id="crtStatus" class="font-mono text-emerald-400">开启</span>
+        </button>
+        <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <button id="btnSideBySide" class="px-3 py-1 text-xs font-medium rounded-md bg-amber-500 text-slate-950 font-bold transition">左右分屏对比</button>
+          <button id="btnFocusSnes" class="px-3 py-1 text-xs font-medium rounded-md text-slate-400 hover:text-white transition">单看 16-Bit 正统</button>
+          <button id="btnFocusFake" class="px-3 py-1 text-xs font-medium rounded-md text-slate-400 hover:text-white transition">单看 伪像素典型</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主画布区域：并排对比或单屏展示 -->
+  <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8" id="comparisonContainer">
+
+    <!-- ======================================================== -->
+    <!-- 对照组：未启用 Skill（普通 AI 常见作派 - 现代网页缝合怪） -->
+    <!-- ======================================================== -->
+    <div id="colFake" class="space-y-4">
+      <div class="flex items-center justify-between border-b border-rose-900/40 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+          <span class="font-bold text-sm text-rose-400">❌ 未使用 Skill (普通 AI 的输出)</span>
+        </div>
+        <span class="text-xs text-slate-400 bg-rose-950/40 border border-rose-800/40 px-2 py-0.5 rounded">典型病症：假像素、矢量渐变、发虚反锯齿</span>
+      </div>
+
+      <div class="fake-pixel-card p-6 relative overflow-hidden">
+        <!-- 装饰性现代发光球 (在像素世界极其违和) -->
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+        <!-- 角色信息头部 -->
+        <div class="flex items-center gap-4 mb-6">
+          <div class="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl shadow-inner">
+            🧙‍♂️
+          </div>
+          <div class="flex-1">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-base text-slate-100">勇者阿尔法 Lv.18</h3>
+              <span class="text-xs text-blue-400 font-medium">游侠 / 法师</span>
+            </div>
+            <!-- 平滑现代进度条 (反像素大忌) -->
+            <div class="mt-2 space-y-1.5">
+              <div class="flex justify-between text-xs text-slate-400">
+                <span>HP: 420 / 500</span>
+                <span>84%</span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                <div class="h-full bg-gradient-to-r from-red-500 to-rose-400 rounded-full" style="width: 84%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 战利品装备选择区 -->
+        <div class="mb-6">
+          <div class="text-xs font-semibold text-slate-400 mb-2.5 flex items-center gap-1.5">
+            <span>战利品掉落选择 (3选1)</span>
+          </div>
+          <div class="space-y-2">
+            <!-- 词条1 -->
+            <div class="p-3 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg cursor-pointer transition flex items-center justify-between group">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl group-hover:scale-110 transition">🗡️</span>
+                <div>
+                  <div class="text-sm font-semibold text-slate-200">雷霆附魔短剑</div>
+                  <div class="text-xs text-slate-400">攻击力 +15，每次暴击附带电弧</div>
+                </div>
+              </div>
+              <span class="text-xs font-semibold text-amber-400 bg-amber-950/60 px-2 py-1 rounded border border-amber-800/40">稀有</span>
+            </div>
+            <!-- 词条2 -->
+            <div class="p-3 bg-blue-950/30 border border-blue-600/50 rounded-lg cursor-pointer transition flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">🛡️</span>
+                <div>
+                  <div class="text-sm font-semibold text-blue-300">星界编织者披风</div>
+                  <div class="text-xs text-slate-400">闪避率 +8%，受到致命伤时闪现</div>
+                </div>
+              </div>
+              <span class="text-xs font-semibold text-indigo-400 bg-indigo-950/60 px-2 py-1 rounded border border-indigo-800/40">史诗</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部操作按钮 -->
+        <div class="flex gap-3 pt-2">
+          <button class="fake-btn flex-1 py-2.5 text-sm font-semibold text-white">确认替换装备</button>
+          <button class="px-4 py-2.5 text-sm font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition text-slate-300">丢弃</button>
+        </div>
+
+        <!-- 评测痛点标注 -->
+        <div class="mt-5 p-3 bg-rose-950/30 border border-rose-900/50 rounded-lg text-xs text-rose-300 space-y-1">
+          <p>⚠️ <strong>硬伤分析：</strong></p>
+          <p>1. 边框带平滑圆角与 CSS 模糊外阴影，完全脱离网格点阵；</p>
+          <p>2. 血条采用平滑 <code>linear-gradient</code> 矢量渐变，没有任何 16-bit 阶梯感；</p>
+          <p>3. 按钮使用现代网页平滑缓动动画（hover 浮动 0.2s），缺乏街机/手柄的干脆敲击感。</p>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- 实验组：挂载 game-ui-design Skill（正统 16-Bit 黄金工业级） -->
+    <!-- ======================================================== -->
+    <div id="colSnes" class="space-y-4">
+      <div class="flex items-center justify-between border-b border-emerald-900/40 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="font-bold text-sm text-emerald-400">✅ 挂载 game-ui-design (16-Bit 工业级)</span>
+        </div>
+        <span class="text-xs text-amber-300 bg-amber-950/40 border border-amber-700/50 px-2 py-0.5 font-mono">规范：SFC/MD 调色板 + 阶梯九宫格 + 硬像素反馈</span>
+      </div>
+
+      <!-- 游戏 UI 画布主体 (支持可选 CRT 扫描线) -->
+      <div id="snesWrapper" class="snes-frame snes-corner-notch crt-overlay select-none relative">
+        
+        <!-- 头部：经典 JRPG 经典双层阶梯边框标题条 -->
+        <div class="flex items-center justify-between mb-5 border-b-4 border-[#090b20] pb-3">
+          <div class="flex items-center gap-3">
+            <!-- 纯像素点阵手绘风格头像框 -->
+            <div class="w-14 h-14 snes-slot flex items-center justify-center text-2xl relative">
+              <span class="pixelated">🧝</span>
+              <!-- 角落像素卡扣 -->
+              <span class="absolute top-0 left-0 w-1 h-1 bg-[#d99926]"></span>
+              <span class="absolute top-0 right-0 w-1 h-1 bg-[#d99926]"></span>
+              <span class="absolute bottom-0 left-0 w-1 h-1 bg-[#d99926]"></span>
+              <span class="absolute bottom-0 right-0 w-1 h-1 bg-[#d99926]"></span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="pixel-text text-amber-300 text-sm tracking-wider">HERO: ALVA</span>
+                <span class="text-[11px] font-mono bg-[#c53a27] text-white px-1.5 py-0.5 border border-black font-bold">LV.18</span>
+              </div>
+              <p class="text-[11px] font-mono text-cyan-300 tracking-tight mt-0.5">JOB: SPELL-BLADE</p>
+            </div>
+          </div>
+
+          <!-- 经典金币与宝石计数器 (等宽阶梯点阵) -->
+          <div class="text-right font-mono text-xs space-y-0.5">
+            <div class="text-amber-400 flex items-center justify-end gap-1 font-bold">
+              <span class="w-2.5 h-2.5 bg-amber-400 border border-black inline-block"></span>
+              <span>2,840 G</span>
+            </div>
+            <div class="text-cyan-400 flex items-center justify-end gap-1 font-bold">
+              <span class="w-2.5 h-2.5 bg-cyan-400 border border-black inline-block"></span>
+              <span>15 ORB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 核心数值槽：分段硬阶梯式血条/蓝条 (SNES 经典像素块，绝不发虚) -->
+        <div class="grid grid-cols-2 gap-3 mb-5 p-2.5 bg-[#090b20] border-2 border-black">
+          <!-- HP 槽 -->
+          <div>
+            <div class="flex justify-between text-[11px] font-mono font-bold mb-1">
+              <span class="text-rose-400">HP [420/500]</span>
+              <span class="text-white">84%</span>
+            </div>
+            <!-- 阶梯像素血条容器 -->
+            <div class="h-4 bg-[#1a0808] border-2 border-black p-0.5 flex gap-0.5">
+              <div class="h-full bg-[#f83800] border-t-2 border-[#ff9f80] border-b-2 border-[#880000]" style="width: 84%;"></div>
+              <div class="h-full bg-transparent flex-1"></div>
+            </div>
+          </div>
+          <!-- MP 槽 -->
+          <div>
+            <div class="flex justify-between text-[11px] font-mono font-bold mb-1">
+              <span class="text-cyan-400">MP [160/200]</span>
+              <span class="text-white">80%</span>
+            </div>
+            <!-- 阶梯像素蓝条容器 -->
+            <div class="h-4 bg-[#081520] border-2 border-black p-0.5 flex gap-0.5">
+              <div class="h-full bg-[#0088ff] border-t-2 border-[#80d0ff] border-b-2 border-[#003888]" style="width: 80%;"></div>
+              <div class="h-full bg-transparent flex-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 16-Bit 装备与战利品选择（带经典指示像素小手指） -->
+        <div class="mb-5">
+          <div class="text-xs font-mono font-bold text-amber-200 mb-2 flex items-center justify-between">
+            <span>&gt; REWARD SELECTION</span>
+            <span class="text-[10px] text-slate-400">[PRESS A TO EQUIP]</span>
+          </div>
+
+          <div class="space-y-2">
+            <!-- 词条 1 (已聚焦状态) -->
+            <div id="slot1" onclick="selectSlot(1)" class="snes-slot active p-2.5 cursor-pointer relative flex items-center justify-between group">
+              <!-- 逐帧硬跳像素指针 (Active 状态常驻) -->
+              <div class="pointer-indicator absolute -left-5 text-amber-300 text-sm pixel-pointer font-bold">
+                ▶
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-[#182348] border-2 border-black flex items-center justify-center text-lg">
+                  ⚡
+                </div>
+                <div>
+                  <div class="text-xs font-mono font-bold text-yellow-300">THUNDER EDGE +2</div>
+                  <div class="text-[10px] font-mono text-slate-300 mt-0.5">ATK +18 / CHAIN LIGHTNING ON CRIT</div>
+                </div>
+              </div>
+              <div class="border-2 border-black bg-[#994d00] text-amber-200 font-mono text-[10px] px-1.5 py-0.5 font-bold">
+                RARE
+              </div>
+            </div>
+
+            <!-- 词条 2 -->
+            <div id="slot2" onclick="selectSlot(2)" class="snes-slot p-2.5 cursor-pointer relative flex items-center justify-between group">
+              <div class="pointer-indicator hidden absolute -left-5 text-amber-300 text-sm pixel-pointer font-bold">
+                ▶
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-[#182348] border-2 border-black flex items-center justify-center text-lg">
+                  🔮
+                </div>
+                <div>
+                  <div class="text-xs font-mono font-bold text-indigo-300">ASTRAL CLOAK</div>
+                  <div class="text-[10px] font-mono text-slate-300 mt-0.5">EVA +12% / MANA REGEN +3.5/SEC</div>
+                </div>
+              </div>
+              <div class="border-2 border-black bg-[#5c1c88] text-purple-200 font-mono text-[10px] px-1.5 py-0.5 font-bold">
+                EPIC
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 经典像素底部操作栏 -->
+        <div class="flex gap-4 pt-1">
+          <button onclick="triggerEquipEffect()" class="snes-btn flex-1 py-2 text-xs uppercase">
+            EQUIP ITEM (SPACE)
+          </button>
+          <button class="snes-btn bg-[#485368] hover:bg-[#5b6880] px-4 py-2 text-xs uppercase" style="box-shadow: 0 -4px 0 0 #000, 0 4px 0 0 #000, -4px 0 0 0 #000, 4px 0 0 0 #000, inset 3px 3px 0 0 #8896af, inset -3px -3px 0 0 #222938;">
+            DISCARD
+          </button>
+        </div>
+
+        <!-- 动态点击视觉反馈飘字 (纯像素位移) -->
+        <div id="pixelFloatingText" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#000] border-2 border-amber-300 px-4 py-2 font-mono text-amber-300 text-xs font-bold z-50 shadow-2xl">
+          ✨ ITEM EQUIPPED! STATS UPDATED ✨
+        </div>
+      </div>
+
+      <!-- 专业标准总结 -->
+      <div class="p-3 bg-emerald-950/30 border border-emerald-900/50 rounded-lg text-xs text-emerald-300 space-y-1">
+        <p>💎 <strong>game-ui-design 核心精髓：</strong></p>
+        <p>1. <strong>有限色彩阶梯：</strong> 杜绝任何平滑 Alpha 模糊渐变，所有色调均用 3~4 级定值色阶表达体积；</p>
+        <p>2. <strong>物理下沉与帧动画：</strong> 按钮按压是纯 4px 坐标跳跃与明暗内外阴影倒置，彻底还原街机微动开关手感；</p>
+        <p>3. <strong>严谨网格与点阵：</strong> 边框直角咬合与多重高光线严格以 2px/4px 倍数对齐，绝不模糊发虚。</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 交互逻辑：插槽切换
+    function selectSlot(index) {
+      const s1 = document.getElementById('slot1');
+      const s2 = document.getElementById('slot2');
+      const p1 = s1.querySelector('.pointer-indicator');
+      const p2 = s2.querySelector('.pointer-indicator');
+
+      if (index === 1) {
+        s1.classList.add('active');
+        s2.classList.remove('active');
+        p1.classList.remove('hidden');
+        p2.classList.add('hidden');
+      } else {
+        s2.classList.add('active');
+        s1.classList.remove('active');
+        p2.classList.remove('hidden');
+        p1.classList.add('hidden');
+      }
+    }
+
+    // 装备反馈动画
+    function triggerEquipEffect() {
+      const floatTip = document.getElementById('pixelFloatingText');
+      floatTip.classList.remove('hidden');
+      setTimeout(() => {
+        floatTip.classList.add('hidden');
+      }, 1200);
+    }
+
+    // CRT 扫描线开关
+    const toggleCrtBtn = document.getElementById('toggleCrt');
+    const crtStatus = document.getElementById('crtStatus');
+    const snesWrapper = document.getElementById('snesWrapper');
+    let crtEnabled = true;
+
+    toggleCrtBtn.addEventListener('click', () => {
+      crtEnabled = !crtEnabled;
+      if (crtEnabled) {
+        snesWrapper.classList.add('crt-overlay');
+        crtStatus.innerText = '开启';
+        crtStatus.className = 'font-mono text-emerald-400';
+      } else {
+        snesWrapper.classList.remove('crt-overlay');
+        crtStatus.innerText = '关闭';
+        crtStatus.className = 'font-mono text-slate-500';
+      }
+    });
+
+    // 视图切换（左右对比 vs 单视窗）
+    const btnSide = document.getElementById('btnSideBySide');
+    const btnSnes = document.getElementById('btnFocusSnes');
+    const btnFake = document.getElementById('btnFocusFake');
+    const colFake = document.getElementById('colFake');
+    const colSnes = document.getElementById('colSnes');
+    const container = document.getElementById('comparisonContainer');
+
+    function resetButtons() {
+      [btnSide, btnSnes, btnFake].forEach(b => {
+        b.className = 'px-3 py-1 text-xs font-medium rounded-md text-slate-400 hover:text-white transition';
+      });
+    }
+
+    btnSide.addEventListener('click', () => {
+      resetButtons();
+      btnSide.className = 'px-3 py-1 text-xs font-medium rounded-md bg-amber-500 text-slate-950 font-bold transition';
+      container.className = 'max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8';
+      colFake.style.display = 'block';
+      colSnes.style.display = 'block';
+    });
+
+    btnSnes.addEventListener('click', () => {
+      resetButtons();
+      btnSnes.className = 'px-3 py-1 text-xs font-medium rounded-md bg-amber-500 text-slate-950 font-bold transition';
+      container.className = 'max-w-3xl mx-auto';
+      colFake.style.display = 'none';
+      colSnes.style.display = 'block';
+    });
+
+    btnFake.addEventListener('click', () => {
+      resetButtons();
+      btnFake.className = 'px-3 py-1 text-xs font-medium rounded-md bg-amber-500 text-slate-950 font-bold transition';
+      container.className = 'max-w-3xl mx-auto';
+      colFake.style.display = 'block';
+      colSnes.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Feel 打击感与战斗微反馈实机演示</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 font-sans antialiased selection:bg-amber-500 selection:text-black">
+
+  <div class="max-w-5xl mx-auto space-y-6">
+
+    <!-- 顶部标题与定位 -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-4 rounded-xl backdrop-blur">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 text-xs font-bold rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">Skill 07 实机互动评测</span>
+          <h1 class="text-xl font-bold tracking-tight text-white">game-feel：打击感、物理阻力与反馈调优</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">测试场景：近战重剑斩击（大剑挥击 -&gt; 命中受击木桩 -&gt; 冲击波与反馈链）</p>
+      </div>
+
+      <!-- 快速模式切换 -->
+      <div class="flex items-center bg-slate-950 p-1.5 rounded-lg border border-slate-800 gap-2">
+        <button id="btnVanilla" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition">
+          ❌ 未使用 Skill (软绵绵)
+        </button>
+        <button id="btnJuiced" class="px-4 py-1.5 text-xs font-bold rounded-md bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition">
+          ✅ 搭载 game-feel (极爽打击)
+        </button>
+      </div>
+    </div>
+
+    <!-- 核心战斗主舞台画布容器 -->
+    <div class="relative bg-slate-900 border-2 border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+      <!-- 提示覆盖层 -->
+      <div class="absolute top-3 left-4 z-10 flex items-center gap-3 pointer-events-none">
+        <span id="modeBadge" class="px-2.5 py-1 text-xs font-bold rounded border bg-amber-500/20 text-amber-300 border-amber-500/40">
+          🔥 当前模式：搭载 game-feel (全特效打击感开启)
+        </span>
+        <span class="text-xs text-slate-400 hidden sm:inline">
+          [点击屏幕] 或 [按空格键 Space] 挥刀攻击
+        </span>
+      </div>
+
+      <div class="absolute top-3 right-4 z-10 flex items-center gap-2">
+        <button id="btnSoundToggle" class="px-2.5 py-1 text-xs rounded bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center gap-1 backdrop-blur">
+          🔊 音效: <span id="soundLabel" class="text-emerald-400 font-bold">开启</span>
+        </button>
+      </div>
+
+      <!-- Canvas 战斗视窗 -->
+      <div class="flex justify-center items-center bg-[#0d1117] p-2 sm:p-4 cursor-crosshair" id="canvasWrapper">
+        <canvas id="gameCanvas" width="760" height="380" class="w-full max-w-[760px] h-auto border border-slate-800 rounded-lg shadow-inner"></canvas>
+      </div>
+
+      <!-- 快捷挥击大按钮 (适配移动端/点击) -->
+      <div class="p-3 bg-slate-900/90 border-t border-slate-800 flex justify-center">
+        <button id="btnManualSlash" class="w-full sm:w-80 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black tracking-wider rounded-lg shadow-lg active:scale-95 transition text-sm flex items-center justify-center gap-2">
+          ⚔️ 挥剑斩击 (SLASH / SPACE)
+        </button>
+      </div>
+    </div>
+
+    <!-- 打击感 6 大微反馈要素深度解剖面板 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- 左侧：参数实时调试器 (微调体验) -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            🎛️ 打击感要素分解调试台
+          </h2>
+          <span class="text-xs text-slate-400">关闭/开启各个微反馈感受差距</span>
+        </div>
+
+        <div class="space-y-3.5 text-xs">
+          <!-- 顿帧 Hitstop -->
+          <label class="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:border-slate-700">
+            <div>
+              <div class="font-bold text-slate-200">1. 顿帧定格 (Hitstop / Freeze Frame)</div>
+              <div class="text-slate-400 text-[11px]">命中瞬间时空冻结 60ms，赋予冷兵器砍中实体的顿挫阻力感</div>
+            </div>
+            <input type="checkbox" id="chkHitstop" checked class="w-4 h-4 accent-amber-500 rounded">
+          </label>
+
+          <!-- 震屏 Screenshake -->
+          <label class="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:border-slate-700">
+            <div>
+              <div class="font-bold text-slate-200">2. 创伤衰减震屏 (Trauma Shake)</div>
+              <div class="text-slate-400 text-[11px]">基于 Trauma² 非线性衰减震动，带角位移微偏转而非单纯平移</div>
+            </div>
+            <input type="checkbox" id="chkShake" checked class="w-4 h-4 accent-amber-500 rounded">
+          </label>
+
+          <!-- 白闪 White Flash -->
+          <label class="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:border-slate-700">
+            <div>
+              <div class="font-bold text-slate-200">3. 受击瞬间白闪 (White-out Flash)</div>
+              <div class="text-slate-400 text-[11px]">命中首帧受击者全白高亮 2 帧，极大强化视网膜冲击感</div>
+            </div>
+            <input type="checkbox" id="chkFlash" checked class="w-4 h-4 accent-amber-500 rounded">
+          </label>
+
+          <!-- 挤压拉伸 Squash & Stretch -->
+          <label class="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:border-slate-700">
+            <div>
+              <div class="font-bold text-slate-200">4. 弹性挤压拉伸 (Squash & Stretch)</div>
+              <div class="text-slate-400 text-[11px]">受击瞬间横向拉宽 1.3 倍、纵向压扁，呈现肉质弹性与受力形变</div>
+            </div>
+            <input type="checkbox" id="chkSquash" checked class="w-4 h-4 accent-amber-500 rounded">
+          </label>
+
+          <!-- 定向火花粒子 Sparks -->
+          <label class="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:border-slate-700">
+            <div>
+              <div class="font-bold text-slate-200">5. 斩切向喷射火花 (Directional Sparks)</div>
+              <div class="text-slate-400 text-[11px]">沿剑光切线高速喷溅的亮黄色几何火花与重力散落碎片</div>
+            </div>
+            <input type="checkbox" id="chkSparks" checked class="w-4 h-4 accent-amber-500 rounded">
+          </label>
+
+          <!-- 暴击跳字 Pop Damage -->
+          <label class="flex items-center justify-between p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 cursor-pointer hover:border-slate-700">
+            <div>
+              <div class="font-bold text-slate-200">6. 弹性爆字 (Damage Pop-in)</div>
+              <div class="text-slate-400 text-[11px]">暴击数字初速度放大并回弹，拒绝呆板的匀速向上飘字</div>
+            </div>
+            <input type="checkbox" id="chkDamagePop" checked class="w-4 h-4 accent-amber-500 rounded">
+          </label>
+        </div>
+      </div>
+
+      <!-- 右侧：工业级打击感本质剖析 -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 space-y-4">
+        <div class="border-b border-slate-800 pb-3">
+          <h2 class="text-sm font-bold text-white flex items-center gap-2">
+            📊 为什么普通 AI 永远做不出好手感？
+          </h2>
+          <span class="text-xs text-slate-400">代码能跑 vs 真正好玩的本质鸿沟</span>
+        </div>
+
+        <div class="space-y-3 text-xs leading-relaxed text-slate-300">
+          <div class="p-3 bg-rose-950/20 border border-rose-900/30 rounded-lg">
+            <span class="font-bold text-rose-400">❌ 普通 AI 的思维盲区：</span>
+            <p class="mt-1 text-slate-400">只关注“状态数学”，认为 `enemy.hp -= 10` 和播放一段受击动画就算完成任务。结果是轻飘飘如切纸、像操作两个无灵魂的矩形方块，手感塑料廉价。</p>
+          </div>
+
+          <div class="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-lg">
+            <span class="font-bold text-emerald-400">✅ game-feel Skill 的物理感知模型：</span>
+            <p class="mt-1 text-slate-400">手感是一种**神经欺骗艺术**。通过<strong>时间层（顿帧）+ 空间层（物理阻尼击退/拉伸）+ 视觉层（高反差白闪/粒子流）+ 摄影机层（创伤震动）</strong>协同作用，在人类大脑中模拟出重量感与肌肉发力感。</p>
+          </div>
+
+          <div class="p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg">
+            <span class="font-bold text-amber-300">💡 关键经验法则（Vlambeer 经典公式）：</span>
+            <p class="mt-1 font-mono text-[11px] text-amber-200">Trauma = Math.min(1.0, Trauma + 0.5);<br>Shake = MaxOffset * Math.pow(Trauma, 2) * PerlinNoise();</p>
+            <p class="mt-1 text-[11px] text-slate-400">使用平方（Trauma²）让微小的攻击震颤微弱、强力攻击剧烈震撼，产生层次分明的打击回馈。</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================
+    // 纯合成 8-Bit Web Audio 极简打击音效引擎
+    // ==========================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playSlash() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
+      }
+      playHeavyHit() {
+        if (!this.enabled) return;
+        this.init();
+        // 低频重击顿音
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.18);
+
+        // 伴随破裂噪音火花
+        const bufferSize = this.ctx.sampleRate * 0.08;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        noise.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start();
+      }
+      playLightHit() {
+        if (!this.enabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(150, this.ctx.currentTime + 0.06);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.06);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.06);
+      }
+    }
+    const audio = new SoundEngine();
+
+    // ==========================================
+    // 画布与游戏循环
+    // ==========================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let mode = 'juiced'; // 'vanilla' | 'juiced'
+
+    // 配置项
+    const config = {
+      hitstop: true,
+      shake: true,
+      flash: true,
+      squash: true,
+      sparks: true,
+      damagePop: true
+    };
+
+    // 游戏状态
+    let trauma = 0;
+    let hitstopTimer = 0; // ms
+    let lastTime = performance.now();
+
+    // 实体：主角
+    const player = {
+      x: 230,
+      y: 240,
+      state: 'idle', // 'idle' | 'slashing'
+      animTimer: 0,
+      slashProgress: 0
+    };
+
+    // 实体：目标木桩
+    const dummy = {
+      baseX: 490,
+      baseY: 240,
+      x: 490,
+      y: 240,
+      vx: 0,
+      hp: 100,
+      maxHp: 100,
+      scaleX: 1,
+      scaleY: 1,
+      flashFrames: 0
+    };
+
+    // 粒子与浮动文字列表
+    let particles = [];
+    let damageNumbers = [];
+
+    // 触发攻击动作
+    function triggerAttack() {
+      if (player.state === 'slashing') return;
+      player.state = 'slashing';
+      player.slashProgress = 0;
+      audio.playSlash();
+    }
+
+    // 命中结算
+    function onHitImpact() {
+      const isJuiced = (mode === 'juiced');
+
+      // 1. 扣血
+      const dmg = isJuiced ? 38 : 10;
+      dummy.hp = Math.max(0, dummy.hp - dmg);
+      if (dummy.hp === 0) dummy.hp = dummy.maxHp;
+
+      if (!isJuiced) {
+        // 普通平庸模式：无顿帧、无震屏、匀速直飘
+        audio.playLightHit();
+        damageNumbers.push({
+          x: dummy.x + (Math.random() * 20 - 10),
+          y: dummy.y - 60,
+          vy: -1.2,
+          text: dmg.toString(),
+          scale: 1,
+          color: '#ffffff',
+          alpha: 1,
+          life: 40
+        });
+        dummy.x += 10; // 粗暴硬位移
+        return;
+      }
+
+      // 专家模式：全要素击发
+      audio.playHeavyHit();
+
+      // ① 顿帧 Hitstop
+      if (config.hitstop) {
+        hitstopTimer = 75; // 75ms 停滞
+      }
+
+      // ② 创伤震屏
+      if (config.shake) {
+        trauma = Math.min(1.0, trauma + 0.7);
+      }
+
+      // ③ 白闪
+      if (config.flash) {
+        dummy.flashFrames = 3;
+      }
+
+      // ④ 弹性挤压拉伸
+      if (config.squash) {
+        dummy.scaleX = 1.45;
+        dummy.scaleY = 0.65;
+      }
+
+      // ⑤ 击退初速度
+      dummy.vx = 14;
+
+      // ⑥ 定向喷溅火花粒子
+      if (config.sparks) {
+        for (let i = 0; i < 28; i++) {
+          const angle = (Math.PI * 0.1) + (Math.random() - 0.5) * 1.2; // 沿斩击右前方锥形散布
+          const speed = 7 + Math.random() * 11;
+          particles.push({
+            x: dummy.x - 20,
+            y: dummy.y - 20,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 2.5,
+            color: Math.random() > 0.4 ? '#ffea00' : '#ff4400',
+            size: 3 + Math.random() * 3,
+            life: 25 + Math.random() * 15,
+            gravity: 0.4
+          });
+        }
+      }
+
+      // ⑦ 暴击弹跳飘字
+      if (config.damagePop) {
+        damageNumbers.push({
+          x: dummy.x + 10,
+          y: dummy.y - 50,
+          vy: -3.5,
+          text: `CRIT! ${dmg}`,
+          scale: 2.2, // 巨大化弹出
+          color: '#ffdd00',
+          alpha: 1,
+          life: 55
+        });
+      }
+    }
+
+    // 主渲染与物理循环
+    function updateAndRender(now) {
+      const dt = now - lastTime;
+      lastTime = now;
+
+      // 如果顿帧处于激活状态，跳过物理模拟
+      if (hitstopTimer > 0) {
+        hitstopTimer -= dt;
+      } else {
+        // --- 物理更新阶段 ---
+        // 主角攻击挥刀动画进度
+        if (player.state === 'slashing') {
+          player.slashProgress += 0.08;
+          if (player.slashProgress >= 0.5 && player.slashProgress < 0.58) {
+            onHitImpact();
+          }
+          if (player.slashProgress >= 1.0) {
+            player.state = 'idle';
+            player.slashProgress = 0;
+          }
+        }
+
+        // 木桩击退与物理阻尼归位
+        dummy.x += dummy.vx;
+        dummy.vx *= 0.82; // 强阻尼衰减
+        dummy.x += (dummy.baseX - dummy.x) * 0.15; // 弹簧拉回基准位置
+
+        // 挤压拉伸回弹阻尼
+        dummy.scaleX += (1 - dummy.scaleX) * 0.22;
+        dummy.scaleY += (1 - dummy.scaleY) * 0.22;
+
+        // 白闪计数
+        if (dummy.flashFrames > 0) dummy.flashFrames--;
+
+        // 粒子更新
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity;
+          p.vx *= 0.94;
+          p.life--;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        // 飘字更新
+        for (let i = damageNumbers.length - 1; i >= 0; i--) {
+          const d = damageNumbers[i];
+          d.y += d.vy;
+          d.vy *= 0.92;
+          d.scale += (1 - d.scale) * 0.18; // 回弹到正常尺寸
+          d.life--;
+          if (d.life < 20) d.alpha = d.life / 20;
+          if (d.life <= 0) damageNumbers.splice(i, 1);
+        }
+
+        // 震屏 Trauma 衰减
+        trauma = Math.max(0, trauma - 0.035);
+      }
+
+      // --- 渲染阶段 ---
+      ctx.save();
+
+      // 清屏
+      ctx.fillStyle = '#0b0f19';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 计算 Trauma 震屏位移与旋转 (Trauma^2)
+      let shakeX = 0, shakeY = 0, shakeAngle = 0;
+      if (mode === 'juiced' && config.shake && trauma > 0) {
+        const shakePower = Math.pow(trauma, 2);
+        const maxOffset = 14;
+        shakeX = (Math.random() * 2 - 1) * maxOffset * shakePower;
+        shakeY = (Math.random() * 2 - 1) * maxOffset * shakePower;
+        shakeAngle = (Math.random() * 2 - 1) * 0.04 * shakePower;
+
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(shakeAngle);
+        ctx.translate(-canvas.width / 2 + shakeX, -canvas.height / 2 + shakeY);
+      }
+
+      // 绘制像素地面网格线
+      ctx.fillStyle = '#161d2f';
+      ctx.fillRect(0, 270, canvas.width, canvas.height - 270);
+      ctx.strokeStyle = '#25304b';
+      ctx.lineWidth = 2;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 270);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(0, 270);
+      ctx.lineTo(canvas.width, 270);
+      ctx.stroke();
+
+      // 绘制地面阴影
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.ellipse(player.x, 270, 30, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(dummy.x, 270, 28 * dummy.scaleX, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 绘制目标木桩 (带挤压拉伸与受击白闪)
+      ctx.save();
+      ctx.translate(dummy.x, dummy.y);
+      ctx.scale(dummy.scaleX, dummy.scaleY);
+
+      if (dummy.flashFrames > 0 && mode === 'juiced' && config.flash) {
+        // 白闪模式：纯白高光填充
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-22, -60, 44, 60);
+        ctx.fillRect(-16, -80, 32, 22);
+      } else {
+        // 正常木桩身体与草靶
+        ctx.fillStyle = '#78350f'; // 粗木底桩
+        ctx.fillRect(-20, -58, 40, 58);
+        ctx.fillStyle = '#b45309'; // 亮面木纹
+        ctx.fillRect(-16, -58, 12, 58);
+        // 上层草人假人头部
+        ctx.fillStyle = '#ca8a04';
+        ctx.fillRect(-18, -78, 36, 24);
+        // 黑色绑带与十字靶心
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(-20, -40, 40, 4);
+        ctx.fillRect(-6, -70, 12, 4);
+        ctx.fillRect(-2, -74, 4, 12);
+        // 像素黑描边
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-20, -58, 40, 58);
+        ctx.strokeRect(-18, -78, 36, 24);
+      }
+
+      // 血条 (像素分段)
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(-32, -96, 64, 8);
+      const hpWidth = Math.max(0, (dummy.hp / dummy.maxHp) * 60);
+      ctx.fillStyle = dummy.hp < 30 ? '#dc2626' : '#16a34a';
+      ctx.fillRect(-30, -94, hpWidth, 4);
+      ctx.restore();
+
+      // 绘制主角小剑士
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      // 身体基底 (深蓝装甲)
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(-18, -50, 36, 45);
+      // 头部头盔
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(-14, -72, 28, 24);
+      ctx.fillStyle = '#f59e0b'; // 金色羽毛头饰
+      ctx.fillRect(-6, -82, 12, 12);
+      // 眼睛光芒
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(4, -64, 6, 4);
+      // 像素黑描边
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-18, -50, 36, 45);
+      ctx.strokeRect(-14, -72, 28, 24);
+
+      // 挥刀动作渲染 (根据 slashProgress)
+      if (player.state === 'slashing') {
+        const p = player.slashProgress;
+        ctx.save();
+        ctx.translate(10, -25);
+        ctx.rotate(-Math.PI * 0.4 + p * Math.PI * 0.9); // 从后仰到前砍
+
+        // 巨剑剑身
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(0, -8, 75, 16);
+        ctx.fillStyle = '#f8fafc'; // 刀刃高光
+        ctx.fillRect(0, -8, 75, 5);
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-15, -12, 15, 24); // 护手
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(-30, -4, 15, 8);  // 握柄
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(0, -8, 75, 16);
+        ctx.restore();
+
+        // 弧形光芒斩击特效 (Slash Arc)
+        if (p > 0.3 && p < 0.8) {
+          ctx.strokeStyle = mode === 'juiced' ? '#fde047' : '#93c5fd';
+          ctx.lineWidth = mode === 'juiced' ? 12 : 4;
+          ctx.beginPath();
+          ctx.arc(20, -25, 85, -Math.PI * 0.25, Math.PI * 0.35);
+          ctx.stroke();
+          // 内芯纯白斩光
+          if (mode === 'juiced') {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+          }
+        }
+      } else {
+        // 常态收刀待机
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(12, -45, 10, 48);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(12, -45, 10, 48);
+      }
+      ctx.restore();
+
+      // 绘制粒子火花
+      for (const p of particles) {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+      }
+
+      // 绘制伤害浮动文字
+      for (const d of damageNumbers) {
+        ctx.save();
+        ctx.globalAlpha = d.alpha;
+        ctx.translate(d.x, d.y);
+        ctx.scale(d.scale, d.scale);
+        ctx.font = 'bold 20px "Courier New", monospace';
+        // 黑色描边
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 5;
+        ctx.strokeText(d.text, 0, 0);
+        // 主色填充
+        ctx.fillStyle = d.color;
+        ctx.fillText(d.text, 0, 0);
+        ctx.restore();
+      }
+
+      ctx.restore();
+      requestAnimationFrame(updateAndRender);
+    }
+
+    // 启动循环
+    requestAnimationFrame(updateAndRender);
+
+    // ==========================================
+    // 交互与控件绑定
+    // ==========================================
+    const btnVanilla = document.getElementById('btnVanilla');
+    const btnJuiced = document.getElementById('btnJuiced');
+    const modeBadge = document.getElementById('modeBadge');
+    const btnManualSlash = document.getElementById('btnManualSlash');
+    const btnSoundToggle = document.getElementById('btnSoundToggle');
+    const soundLabel = document.getElementById('soundLabel');
+
+    btnVanilla.addEventListener('click', () => {
+      mode = 'vanilla';
+      btnVanilla.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-rose-500 text-white shadow-lg transition';
+      btnJuiced.className = 'px-4 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition';
+      modeBadge.className = 'px-2.5 py-1 text-xs font-bold rounded border bg-rose-500/20 text-rose-300 border-rose-500/40';
+      modeBadge.innerText = '⚠️ 当前模式：未使用 Skill (平淡无奇，无顿挫与重量感)';
+    });
+
+    btnJuiced.addEventListener('click', () => {
+      mode = 'juiced';
+      btnJuiced.className = 'px-4 py-1.5 text-xs font-bold rounded-md bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition';
+      btnVanilla.className = 'px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition';
+      modeBadge.className = 'px-2.5 py-1 text-xs font-bold rounded border bg-amber-500/20 text-amber-300 border-amber-500/40';
+      modeBadge.innerText = '🔥 当前模式：搭载 game-feel (全特效打击感开启)';
+    });
+
+    btnManualSlash.addEventListener('click', triggerAttack);
+    canvas.addEventListener('click', triggerAttack);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        triggerAttack();
+      }
+    });
+
+    btnSoundToggle.addEventListener('click', () => {
+      audio.enabled = !audio.enabled;
+      soundLabel.innerText = audio.enabled ? '开启' : '关闭';
+      soundLabel.className = audio.enabled ? 'text-emerald-400 font-bold' : 'text-slate-500 font-bold';
+    });
+
+    // 绑定调试滑块/开关
+    const binds = [
+      ['chkHitstop', 'hitstop'],
+      ['chkShake', 'shake'],
+      ['chkFlash', 'flash'],
+      ['chkSquash', 'squash'],
+      ['chkSparks', 'sparks'],
+      ['chkDamagePop', 'damagePop']
+    ];
+    binds.forEach(([elemId, key]) => {
+      document.getElementById(elemId).addEventListener('change', (e) => {
+        config[key] = e.target.checked;
+      });
+    });
+  </script>
+</body>
+</html>
