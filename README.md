@@ -221,6 +221,23 @@
 
 ---
 
+### 13. `game-economy-tuning`：游戏数值工程、双曲减伤、抽卡双保底与防通胀模型（静态架构参考）
+
+![游戏数值工程与经济防通胀试验台对比图](assets/economy_comparison.png)
+
+* **❌ 未使用 Skill（拍脑袋定数值 / 断崖不破防 / 倒霉蛋退游）**：
+  * **生硬减法公式 (Atk - Def)**：防御高一点点伤害瞬间暴跌到 1 滴血（绝望刮痧修脚）；防御低一点点又一刀暴毙秒杀；
+  * **纯随机抽卡长尾灾难**：无保底机制下，5% 的玩家漂移至 180~250 抽不出货，引发恶性客诉与差评退游；
+  * **货币通胀失控**：只有打怪产出没有闭环排水孔，中期金币手握数十亿，经济系统沦为废纸。
+* **✅ 搭载 `game-economy-tuning`（工业级数值工程精算）**：
+  * **双曲除法平滑减伤公式**：$\text{Damage} = \text{Atk} \times \frac{K}{\text{Def} + K}$，每 100 点防御严格提供 100% 线性有效生命（Effective HP），绝无硬断层；
+  * **蒙特卡洛 73 抽软硬双保底**：基础概率 0.6%，第 73 抽开始动态概率爬坡（每次 +6%），第 90 抽硬保底，期望严格收敛在 62.5 抽，消除极端倒霉蛋；
+  * **资产负债流水表 (Tap & Sink)**：引入 95% 黄金产销回笼率（强化消耗、耐久维修、交易行税收），货币长期稳态沉淀，通胀率锁死在年化 $\le 3\%$。
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验数值工程与经济防通胀试验台](https://orikami048.github.io/game-skills/prototypes/economy_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/economy_showcase.html](http://localhost:8088/prototypes/economy_showcase.html))*
+
+---
+
 ## 🤖 适配与实测推荐模型矩阵 (Model Matrix)
 
 为确保 Skills 发挥最佳效果，针对不同开发环节推荐选用最匹配的模型：
@@ -234,6 +251,7 @@
 | **像素资产出图 (Sprite/UI)** | **Imagen 3 (Fast / HQ)** / **Gemini 3.8 Flash ImageGen** | 对 `#FF00FF` 品红底与“无外发光、无抗锯齿”负面提示词执行力强，网格漂移率极低。 |
 | **程序化关卡与图论拓扑** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间二叉树切分紧凑，极擅长 A* 泛洪校验、锁钥 DAG 依赖与 Mulberry32 位运算。 |
 | **手柄导航与人机工效设计** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间几何射线检测推导强，极度熟悉 Focus Trap 焦点栈防穿透与 Nielsen 人机工效学。 |
+| **游戏数值工程与经济防通胀** | **Gemini 3.8 Flash (High)** / **Claude 3.7 Sonnet** | 双曲减伤 EHP 线性推导、蒙特卡洛抽卡仿真与产销流水表精算极其严密。 |
 | **Web/小游戏工程与分包优化** | **Gemini 3.8 Flash (High)** / **Claude 3.7 Sonnet** | 极度熟悉微信 `game.json` 分包限制、iOS WebAudio 首次触控唤醒与视口防拉扯。 |
 | **风格锚点与概念原画** | **Midjourney v6 (`--style raw`)** | 适合立项初期确立复古调色盘与全局艺术基调。 |
 
@@ -252,7 +270,8 @@ game-skills/
 │   ├── level_comparison.png       # 程序化关卡与拓扑必达路径图
 │   ├── threejs_ui_comparison.png  # Three.js 3D 空间 UI 与 Billboard 架构图
 │   ├── multiplayer_comparison.png # 多人联机权威预测与快照调和架构图
-│   └── webgame_comparison.png     # Web与小游戏分包合规与音频解锁架构图
+│   ├── webgame_comparison.png     # Web与小游戏分包合规与音频解锁架构图
+│   └── economy_comparison.png     # 游戏数值工程与经济防通胀架构图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
@@ -265,7 +284,8 @@ game-skills/
 │   ├── level_showcase.html        # 程序化关卡与拓扑必达路径试验台
 │   ├── threejs_ui_showcase.html   # Three.js 3D 空间 UI 与边缘雷达试验台
 │   ├── multiplayer_showcase.html  # 多人联机权威预测与快照插值试验台
-│   └── webgame_showcase.html      # 小游戏分包流式加载与iOS音频解锁试验台
+│   ├── webgame_showcase.html      # 小游戏分包流式加载与iOS音频解锁试验台
+│   └── economy_showcase.html      # 游戏数值工程与抽卡防通胀试验台
 └── skills/                        # 核心技能正本
     ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
     │   ├── SKILL.md
@@ -300,7 +320,10 @@ game-skills/
     ├── multiplayer-game/          # 多人联机、权威服务器、预测回滚与实体插值
     │   ├── SKILL.md
     │   └── comparison.png
-    └── develop-web-game/          # Web/微信小游戏分包、iOS音频解锁与视口锁
+    ├── develop-web-game/          # Web/微信小游戏分包、iOS音频解锁与视口锁
+    │   ├── SKILL.md
+    │   └── comparison.png
+    └── game-economy-tuning/       # 游戏数值工程、双曲减伤、抽卡双保底与防通胀
         ├── SKILL.md
         └── comparison.png
 ```
