@@ -12,7 +12,7 @@ description: 游戏手感、打击感与微反馈（Juice / Game Feel）工业�
 
 ## 📸 实机效果对比 (Showcase & Comparison)
 
-![Game Feel 命中受击实机高燃效果图](comparison.png)
+![Game Feel 命中受击实机高燃动图对比](comparison.gif)
 
 > **实操对比差异：**
 > - **Vanilla 模式（未使用 Skill）**：挥击直接穿过，怪物无形变无受阻，数字匀速直飘，手感如切薄纸。

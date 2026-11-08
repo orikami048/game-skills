@@ -14,7 +14,7 @@ description: 16-bit 像素游戏 UI 与界面设计规范。专注于复古正�
 
 ## 📸 实机效果对比 (Showcase & Comparison)
 
-![16-Bit UI 实机对比效果图](comparison.png)
+![16-Bit UI 实机对比动图](comparison.gif)
 
 > **实操对比差异：**
 > - **左侧（未使用 Skill - 普通 AI 常见作派）**：反锯齿矢量圆角、平滑线性渐变血条、模糊外发光阴影、现代缓动动画，违和感强烈。
