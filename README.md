@@ -65,7 +65,20 @@
 
 ---
 
-### 4. `game-feel`：动作游戏打击感与微反馈实机动态对比（全循环动图）
+### 4. `game-developer`：通用游戏开发工程基建与防穿模（静态架构参考）
+
+![通用游戏开发基建架构对比参考图](assets/developer_comparison.png)
+
+* **❌ 未使用 Skill（变长 dt 物理与按键硬编码）**：高速冲刺或掉帧 200ms 时，单帧大位移导致**角色直接穿过障碍薄墙发生严重物理穿模（Tunneling Bug）**；玩家移动代码写死按键，换手机端虚拟摇杆或手柄改键必须推倒重构；
+* **✅ 搭载 `game-developer`（工业级基建）**：
+  * **半固定时间步长累加器（Fixed Timestep）**：物理恒定 60Hz 切分子步长迭代，任何高刷屏或严重掉帧下**绝对阻断穿模**；
+  * **Action-based 输入抽象映射**：键盘、手柄摇杆与屏幕触控摇杆统一由适配器归一化派发，100% 跨平台代码零修改；
+  * **音频总线声池**：三路分流（Master/BGM/SFX），并发限幅防爆音削顶破音。
+* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/developer_showcase.html`](prototypes/developer_showcase.html)
+
+---
+
+### 5. `game-feel`：动作游戏打击感与微反馈实机动态对比（全循环动图）
 
 ![Game Feel 命中受击实机高燃动图对比](assets/feel_comparison.gif)
 
@@ -105,6 +118,7 @@ game-skills/
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
+│   ├── developer_showcase.html    # 通用开发基建试验台 (跨端输入抽象/固定步长防穿模)
 │   ├── ui_showcase.html           # 16-Bit UI 交互原型 (SFC 边框/4px下沉/扫描线)
 │   └── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
 └── skills/                        # 核心技能正本
@@ -112,6 +126,9 @@ game-skills/
     │   ├── SKILL.md
     │   └── comparison.png
     ├── game-engine/               # 游戏引擎架构、空间哈希网格与对象池
+    │   ├── SKILL.md
+    │   └── comparison.png
+    ├── game-developer/            # 通用游戏开发基建、输入抽象与固定步长防穿模
     │   ├── SKILL.md
     │   └── comparison.png
     ├── game-ui-design/            # 16-Bit 游戏 UI 规范与九宫格边框

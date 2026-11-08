@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>通用游戏开发基建架构对比 (game-developer)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #030712;
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+    
+    .header-card {
+      background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px 20px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;
+    }
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);
+      margin-bottom: 4px;
+    }
+    .title { font-size: 18px; font-weight: 800; color: #fff; }
+    .subtitle { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+    .mode-switch {
+      display: flex; background: #030712; padding: 4px; border-radius: 8px; border: 1px solid #1f2937; gap: 6px;
+    }
+    .btn-mode {
+      padding: 6px 14px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: 700;
+      transition: all 0.15s ease; color: #9ca3af; background: transparent;
+    }
+    .btn-mode.active-dev {
+      background: #22c55e; color: #030712; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+    }
+    .btn-mode.active-vanilla {
+      background: #ef4444; color: #ffffff; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
+
+    .viewport-box {
+      background: #111827; border: 2px solid #1f2937; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); position: relative;
+    }
+    .viewport-header {
+      padding: 10px 18px; background: rgba(17, 24, 39, 0.85); border-bottom: 1px solid #1f2937;
+      display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+    }
+
+    .canvas-wrap {
+      display: flex; justify-content: center; background: #050811; padding: 12px; position: relative;
+    }
+    canvas {
+      width: 100%; max-width: 800px; height: 360px; border-radius: 8px; border: 1px solid #1f2937;
+      image-rendering: pixelated;
+    }
+
+    /* 虚拟摇杆控制区 (触屏/鼠标模拟) */
+    .joystick-zone {
+      position: absolute; bottom: 25px; left: 25px; width: 100px; height: 100px;
+      border-radius: 50%; background: rgba(255, 255, 255, 0.08); border: 2px dashed rgba(255, 255, 255, 0.2);
+      display: flex; align-items: center; justify-content: center; touch-action: none;
+    }
+    .joystick-knob {
+      width: 40px; height: 40px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+      cursor: grab; pointer-events: none; transform: translate(0, 0); transition: transform 0.05s ease-out;
+    }
+
+    /* 控制面板与测试按钮 */
+    .toolbar-bar {
+      background: #090d16; border-top: 1px solid #1f2937; padding: 12px 18px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; font-size: 12px;
+    }
+    .btn-action {
+      background: #1e293b; color: #f8fafc; border: 1px solid #334155; padding: 6px 12px;
+      border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-action:hover { background: #334155; border-color: #64748b; }
+    .btn-action.active { background: #22c55e; color: #022c22; border-color: #22c55e; }
+
+    /* 状态与调试栏 */
+    .dashboard-bar {
+      background: #020617; border-top: 1px solid #1f2937; padding: 12px 18px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; font-family: monospace; font-size: 11px;
+    }
+    .dash-label { color: #9ca3af; margin-bottom: 2px; }
+    .dash-val { font-size: 15px; font-weight: 800; }
+
+    /* 深度剖析卡片 */
+    .grid-cards {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    .analysis-card {
+      background: #111827; border: 1px solid #1f2937; border-radius: 10px; padding: 14px 16px;
+      font-size: 12px; line-height: 1.5;
+    }
+    .analysis-title {
+      font-weight: 700; color: #4ade80; margin-bottom: 8px; border-bottom: 1px solid #1f2937; padding-bottom: 6px;
+    }
+    @media (max-width: 768px) {
+      .dashboard-bar { grid-template-columns: repeat(2, 1fr); }
+      .grid-cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- 顶部状态栏 -->
+    <div class="header-card">
+      <div>
+        <div class="badge">Skill 04 实机通用基建评测</div>
+        <div class="title">game-developer：通用游戏开发架构基建对比</div>
+        <div class="subtitle">输入抽象层（键盘/手柄/触控统一）、音频分流总线、固定时间步长（防穿模）</div>
+      </div>
+
+      <div class="mode-switch">
+        <button id="btnVanilla" class="btn-mode">
+          ❌ 未使用 Skill (硬编码按键/变长Delta穿模)
+        </button>
+        <button id="btnDev" class="btn-mode active-dev">
+          🔥 搭载 game-developer (输入抽象/固定步长)
+        </button>
+      </div>
+    </div>
+
+    <!-- 核心画布与视窗 -->
+    <div class="viewport-box">
+      <div class="viewport-header">
+        <div id="modeStatusText">
+          <strong style="color: #4ade80;">当前架构：🔥 搭载 game-developer (Action 抽象输入映射 + Fixed Timestep)</strong>
+        </div>
+        <div style="font-size: 11px; color: #9ca3af;">
+          操作：按 [WASD / 方向键] 或使用左下角 [虚拟摇杆] 移动角色
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="devCanvas" width="800" height="360"></canvas>
+
+        <!-- 跨端虚拟摇杆 (搭载 Skill 时可用) -->
+        <div id="virtualJoystick" class="joystick-zone">
+          <div id="joystickKnob" class="joystick-knob"></div>
+        </div>
+      </div>
+
+      <!-- 快速调试工具栏 -->
+      <div class="toolbar-bar">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="btnTriggerLag" class="btn-action">
+            💥 模拟突发掉帧 (卡顿 250ms)
+          </button>
+          <span style="font-size: 11px; color: #9ca3af;">(观察高速冲刺时是否会穿过红色障碍墙)</span>
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="btnDash" class="btn-action" style="background: #2563eb; color: #fff;">
+            ⚡ 极速冲刺 (Space)
+          </button>
+          <button id="btnSoundTest" class="btn-action">
+            🔊 音频并发测试 (防破音)
+          </button>
+        </div>
+      </div>
+
+      <!-- 实时状态指标 -->
+      <div class="dashboard-bar">
+        <div>
+          <div class="dash-label">当前输入抽象源</div>
+          <div id="valInputSource" class="dash-val" style="color: #4ade80;">Keyboard (归一化矢量)</div>
+        </div>
+        <div>
+          <div class="dash-label">物理步长机制</div>
+          <div id="valTimestep" class="dash-val" style="color: #60a5fa;">Fixed 60Hz 累加器</div>
+        </div>
+        <div>
+          <div class="dash-label">物理穿模阻断 (Tunneling)</div>
+          <div id="valTunneling" class="dash-val" style="color: #38bdf8;">安全 (子步长预测阻断)</div>
+        </div>
+        <div>
+          <div class="dash-label">音频总线并发限制</div>
+          <div id="valAudio" class="dash-val" style="color: #fbbf24;">4 声音池 (防削顶破音)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 深度剖析三大基建难点 -->
+    <div class="grid-cards">
+      <div class="analysis-card">
+        <div class="analysis-title">🎮 1. 跨平台输入抽象 (Input Abstraction)</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 在 Player 类里直接判断 <code>if (keys['KeyW'])</code>。想要发布到移动端加触屏摇杆、或者接手柄改键时，必须把所有角色逻辑全部推倒重写。</p>
+        <p style="color: #4ade80;"><strong>✅ 专项 Skill：</strong> 建立 <strong>Action-based 输入映射层</strong>。业务代码只监听抽象的 <code>Move(Vector2)</code> 意图，键盘、手柄摇杆与触屏摇杆统一由适配器归一化。</p>
+      </div>
+
+      <div class="analysis-card">
+        <div class="analysis-title">⏱️ 2. 固定时间步长 (Fixed Timestep) 防穿模</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 简单的 <code>x += speed * dt</code>。在 144Hz 屏幕跑得过快，或突发卡顿掉帧（dt 变大）时，角色直接穿过极细的墙壁穿模掉出地图！</p>
+        <p style="color: #4ade80;"><strong>✅ 专项 Skill：</strong> 引入 <strong>半固定时间步长累加器（Gaffer on Games 模型）</strong>。物理模拟严格以固定 60Hz 切分子步长迭代，任何帧率下物理轨迹绝对一致。</p>
+      </div>
+
+      <div class="analysis-card">
+        <div class="analysis-title">🔊 3. 工业级音频总线分流 (Audio Master Bus)</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 想放声音就 <code>new Audio().play()</code>。连击 10 次同时播放 10 个声音导致爆音刺耳；在 iOS 上由于没有用户手势直接静音报错。</p>
+        <p style="color: #4ade80;"><strong>✅ 专项 Skill：</strong> 建立 <strong>音频总线池（Master/BGM/SFX）</strong>。提供并发 Voice 限制与高频平滑防破音，iOS 手势解锁与资产统一预加载。</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================
+    // 工业级 Web Audio 音频总线与并发声池
+    // ==========================================
+    class AudioManager {
+      constructor() {
+        this.ctx = null;
+        this.maxVoices = 4;
+        this.activeVoices = 0;
+      }
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      playBlip(freq = 400) {
+        this.init();
+        // 防音爆并发限制
+        if (this.activeVoices >= this.maxVoices) return;
+        this.activeVoices++;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+
+        setTimeout(() => { this.activeVoices--; }, 80);
+      }
+    }
+    const audio = new AudioManager();
+
+    // ==========================================
+    // 输入抽象层 (Input Abstraction Layer)
+    // ==========================================
+    class InputManager {
+      constructor() {
+        this.keys = {};
+        this.joystickVector = { x: 0, y: 0 };
+        this.lastSource = 'Keyboard';
+
+        window.addEventListener('keydown', (e) => {
+          this.keys[e.code] = true;
+          this.lastSource = 'Keyboard';
+        });
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.code] = false;
+        });
+      }
+
+      // 获取归一化的抽象移动向量 (Normalize Vector2)
+      getMoveVector() {
+        let x = 0, y = 0;
+        if (this.keys['KeyW'] || this.keys['ArrowUp']) y -= 1;
+        if (this.keys['KeyS'] || this.keys['ArrowDown']) y += 1;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) x -= 1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) x += 1;
+
+        // 如果手柄/虚拟摇杆有输入，融合处理
+        if (Math.abs(this.joystickVector.x) > 0.1 || Math.abs(this.joystickVector.y) > 0.1) {
+          x = this.joystickVector.x;
+          y = this.joystickVector.y;
+          this.lastSource = 'Virtual Joystick (Touch)';
+        }
+
+        const len = Math.hypot(x, y);
+        if (len > 1) {
+          x /= len;
+          y /= len;
+        }
+        return { x, y };
+      }
+    }
+    const input = new InputManager();
+
+    // ==========================================
+    // 虚拟摇杆交互实现
+    // ==========================================
+    const joystickZone = document.getElementById('virtualJoystick');
+    const joystickKnob = document.getElementById('joystickKnob');
+    let isDragging = false;
+    let originX = 0, originY = 0;
+
+    joystickZone.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      const rect = joystickZone.getBoundingClientRect();
+      originX = rect.left + rect.width / 2;
+      originY = rect.top + rect.height / 2;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - originX;
+      const dy = e.clientY - originY;
+      const dist = Math.hypot(dx, dy);
+      const maxDist = 35;
+      const angle = Math.atan2(dy, dx);
+
+      const moveX = dist > maxDist ? Math.cos(angle) * maxDist : dx;
+      const moveY = dist > maxDist ? Math.sin(angle) * maxDist : dy;
+
+      joystickKnob.style.transform = `translate(${moveX}px, ${moveY}px)`;
+      input.joystickVector = {
+        x: moveX / maxDist,
+        y: moveY / maxDist
+      };
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      joystickKnob.style.transform = 'translate(0px, 0px)';
+      input.joystickVector = { x: 0, y: 0 };
+    });
+
+    // ==========================================
+    // 物理世界与玩家实体
+    // ==========================================
+    const canvas = document.getElementById('devCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let mode = 'dev'; // 'vanilla' | 'dev'
+
+    // 障碍薄墙 (用于测试物理穿模 Tunneling)
+    const wall = {
+      x: 480,
+      y: 60,
+      width: 14,
+      height: 240
+    };
+
+    const player = {
+      x: 180,
+      y: 180,
+      vx: 0,
+      vy: 0,
+      radius: 14,
+      speed: 180,
+      color: '#22c55e'
+    };
+
+    let forceLag = false;
+
+    // 半固定时间步长累加器 (Gaffer on Games 模型)
+    const FIXED_DT = 1 / 60; // 60Hz 严格步长
+    let accumulator = 0;
+    let lastTime = performance.now();
+
+    function physicsTick(dt) {
+      const move = input.getMoveVector();
+      player.vx = move.x * player.speed;
+      player.vy = move.y * player.speed;
+
+      const nextX = player.x + player.vx * dt;
+      const nextY = player.y + player.vy * dt;
+
+      // 碰撞检测与阻挡
+      if (
+        nextX + player.radius > wall.x &&
+        nextX - player.radius < wall.x + wall.width &&
+        nextY + player.radius > wall.y &&
+        nextY - player.radius < wall.y + wall.height
+      ) {
+        // 发生碰撞，阻挡水平位移
+        player.vx = 0;
+      } else {
+        player.x = nextX;
+      }
+
+      player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, nextY));
+      player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+    }
+
+    function mainLoop(now) {
+      let rawDt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      // 如果触发了模拟卡顿
+      if (forceLag) {
+        rawDt += 0.25; // 瞬间暴增 250ms
+        forceLag = false;
+      }
+
+      if (mode === 'vanilla') {
+        // --- ❌ 普通 AI 写法：直接使用变长 dt 计算物理（极易穿模） ---
+        const move = input.getMoveVector();
+        player.vx = move.x * player.speed;
+        player.vy = move.y * player.speed;
+
+        // 巨幅位移一步跨过墙壁（穿模 Bug）
+        const nextX = player.x + player.vx * rawDt;
+        const nextY = player.y + player.vy * rawDt;
+
+        // 简陋的瞬时点检测（直接跳过了薄墙内部）
+        if (
+          nextX + player.radius > wall.x &&
+          nextX - player.radius < wall.x + wall.width &&
+          nextY + player.radius > wall.y &&
+          nextY - player.radius < wall.y + wall.height
+        ) {
+          player.vx = 0;
+        } else {
+          player.x = nextX; // 穿模发生！
+        }
+        player.y = nextY;
+      } else {
+        // --- ✅ 专项 Skill：Fixed Timestep 子步长累加器 ---
+        accumulator += Math.min(rawDt, 0.2); // 避免螺旋死锁
+        while (accumulator >= FIXED_DT) {
+          physicsTick(FIXED_DT);
+          accumulator -= FIXED_DT;
+        }
+      }
+
+      // --- 渲染 ---
+      ctx.fillStyle = '#060a14';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 地面装饰网格
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+
+      // 绘制薄墙障碍物
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+      ctx.strokeStyle = '#b91c1c';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
+
+      // 绘制墙体文字说明
+      ctx.fillStyle = '#fca5a5';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('CRITICAL OBSTACLE WALL', wall.x - 65, wall.y - 10);
+
+      // 绘制玩家实体
+      ctx.fillStyle = mode === 'dev' ? '#22c55e' : '#ef4444';
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 如果穿模了（玩家位置跑到了墙的右边，且是从左边冲过去的）
+      if (player.x > wall.x + wall.width + 10 && mode === 'vanilla') {
+        ctx.fillStyle = '#f87171';
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText('⚠️ 严重 Bug：物理穿模！角色已穿过红墙！', 220, 40);
+      }
+
+      // 更新仪表盘
+      document.getElementById('valInputSource').innerText = input.lastSource;
+      document.getElementById('valTimestep').innerText = mode === 'dev' ? 'Fixed 60Hz 累加器' : 'Variable rawDt (易穿模)';
+      document.getElementById('valTunneling').innerText = (player.x > wall.x + wall.width && mode === 'vanilla')
+        ? '已穿模穿墙！'
+        : '安全 (受控碰撞体)';
+      document.getElementById('valTunneling').style.color = (player.x > wall.x + wall.width && mode === 'vanilla') ? '#f87171' : '#38bdf8';
+
+      requestAnimationFrame(mainLoop);
+    }
+    requestAnimationFrame(mainLoop);
+
+    // 控件交互绑定
+    const btnVanilla = document.getElementById('btnVanilla');
+    const btnDev = document.getElementById('btnDev');
+    const modeStatusText = document.getElementById('modeStatusText');
+    const btnTriggerLag = document.getElementById('btnTriggerLag');
+    const btnDash = document.getElementById('btnDash');
+    const btnSoundTest = document.getElementById('btnSoundTest');
+
+    btnVanilla.addEventListener('click', () => {
+      mode = 'vanilla';
+      btnVanilla.className = 'btn-mode active-vanilla';
+      btnDev.className = 'btn-mode';
+      modeStatusText.innerHTML = '<strong style="color: #f87171;">当前架构：❌ 未使用 Skill (变长 rawDt 物理 / 掉帧即穿模)</strong>';
+      player.x = 180;
+    });
+
+    btnDev.addEventListener('click', () => {
+      mode = 'dev';
+      btnDev.className = 'btn-mode active-dev';
+      btnVanilla.className = 'btn-mode';
+      modeStatusText.innerHTML = '<strong style="color: #4ade80;">当前架构：🔥 搭载 game-developer (Action 抽象输入映射 + Fixed Timestep)</strong>';
+      player.x = 180;
+    });
+
+    btnTriggerLag.addEventListener('click', () => {
+      forceLag = true;
+      audio.playBlip(200);
+    });
+
+    btnDash.addEventListener('click', () => {
+      player.speed = 700; // 极速冲刺
+      audio.playBlip(600);
+      setTimeout(() => { player.speed = 180; }, 300);
+    });
+
+    btnSoundTest.addEventListener('click', () => {
+      // 连续并发触发 6 次声音测试防破音限制
+      for (let i = 0; i < 6; i++) {
+        setTimeout(() => audio.playBlip(300 + i * 80), i * 15);
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        player.speed = 700;
+        audio.playBlip(600);
+        setTimeout(() => { player.speed = 180; }, 300);
+      }
+    });
+  </script>
+</body>
+</html>
