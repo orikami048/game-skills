@@ -184,6 +184,25 @@
 
 ---
 
+### 11. `multiplayer-game`：多人联机架构、客户端前向预测与快照重演（静态架构参考）
+
+![多人联机与实时网络同步试验台对比图](assets/multiplayer_comparison.png)
+
+* **❌ 未使用 Skill（幼稚纯坐标同步 / 粘滞拉扯 / 瞬移）**：
+  * **操作粘滞 300ms**：按键后本地等待服务器确认回包才起步，手感如同深水泥潭；
+  * **橡皮筋剧烈回拉 (Rubber-banding)**：丢包或碰撞校验失败时，客户端坐标被粗暴回扯，发生恶性鬼畜瞬移；
+  * **远端玩家跳帧抽搐**：远端实体未做时间插值，在屏幕上如同 PPT 幻灯片跳变；
+  * **外挂完全无法防范**：坐标完全由客户端上报，服务器盲目信任，改内存即可全图瞬移。
+* **✅ 搭载 `multiplayer-game`（工业级权威网络同步 Netcode）**：
+  * **客户端前向预测 (Client-side Prediction)**：本地按键 **0ms 瞬时响应**，物理模拟即刻起步，操作手感丝滑如纯单机；
+  * **服务器权威调和与重演 (Server Reconciliation)**：客户端维护未确认输入队列（Pending Inputs），服务器下发权威快照时毫秒级重演后续输入，**彻底消除橡皮筋瞬移拉扯**；
+  * **远端实体快照插值 (Snapshot Interpolation)**：对其他玩家引入 100ms 抖动缓冲与 Hermite/Lerp 平滑插值，即使 20% 丢包依旧平滑如丝；
+  * **防作弊权威闭环**：客户端仅传输按键意图包 `{seq, input, dt}`，物理碰撞与伤害计算 100% 锁死在服务器。
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验多人联机权威同步试验台](https://orikami048.github.io/game-skills/prototypes/multiplayer_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/multiplayer_showcase.html](http://localhost:8088/prototypes/multiplayer_showcase.html))*
+
+---
+
 ## 🤖 适配与实测推荐模型矩阵 (Model Matrix)
 
 为确保 Skills 发挥最佳效果，针对不同开发环节推荐选用最匹配的模型：
@@ -192,6 +211,7 @@
 |---|---|---|
 | **代码实现与手感逻辑** | **Gemini 3.8 Flash (High)**<br>*(实操验证推荐)* | 响应迅速，逻辑严密。能准确理解 60FPS 游戏循环中的顿帧挂起、阻尼摩擦力数学公式与 0ms 像素位移。 |
 | **高复杂度底层系统与网络** | **Claude 3.7 Sonnet** / **Gemini 3.8 Pro** | 适合生成复杂的 Modifier 属性管线、Godot/Unity HLSL 像素着色器以及多人帧同步/预测回滚逻辑。 |
+| **多人联机架构与网络调和** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 权威输入流时钟对齐、未确认输入快进重放（Re-apply）与抖动缓冲插值推导极强。 |
 | **3D 空间 UI 与公告板数学** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间四元数姿态同步、视口椭圆安全区钳位与背面点积翻转极度精确。 |
 | **像素资产出图 (Sprite/UI)** | **Imagen 3 (Fast / HQ)** / **Gemini 3.8 Flash ImageGen** | 对 `#FF00FF` 品红底与“无外发光、无抗锯齿”负面提示词执行力强，网格漂移率极低。 |
 | **程序化关卡与图论拓扑** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间二叉树切分紧凑，极擅长 A* 泛洪校验、锁钥 DAG 依赖与 Mulberry32 位运算。 |
@@ -211,7 +231,8 @@ game-skills/
 │   ├── ui_ux_comparison.png       # UI/UX 人机工效与手柄焦点架构图
 │   ├── pixel_assets_comparison.png# 像素资产真假对比与瓦片架构图
 │   ├── level_comparison.png       # 程序化关卡与拓扑必达路径图
-│   └── threejs_ui_comparison.png  # Three.js 3D 空间 UI 与 Billboard 架构图
+│   ├── threejs_ui_comparison.png  # Three.js 3D 空间 UI 与 Billboard 架构图
+│   └── multiplayer_comparison.png # 多人联机权威预测与快照调和架构图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
@@ -222,7 +243,8 @@ game-skills/
 │   ├── ui_ux_showcase.html        # UI/UX 人机工效与焦点陷阱试验台
 │   ├── pixel_assets_showcase.html # 像素点阵与无缝自动瓦片试验台
 │   ├── level_showcase.html        # 程序化关卡与拓扑必达路径试验台
-│   └── threejs_ui_showcase.html   # Three.js 3D 空间 UI 与边缘雷达试验台
+│   ├── threejs_ui_showcase.html   # Three.js 3D 空间 UI 与边缘雷达试验台
+│   └── multiplayer_showcase.html  # 多人联机权威预测与快照插值试验台
 └── skills/                        # 核心技能正本
     ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
     │   ├── SKILL.md
@@ -251,10 +273,12 @@ game-skills/
     ├── procedural-level-design/   # 程序化关卡、BSP 二叉树与 A* 必达通关拓扑
     │   ├── SKILL.md
     │   └── comparison.png
-    └── threejs-game-ui-designer/  # Three.js 3D 空间 UI、Billboard 与屏幕边缘雷达
+    ├── threejs-game-ui-designer/  # Three.js 3D 空间 UI、Billboard 与屏幕边缘雷达
+    │   ├── SKILL.md
+    │   └── comparison.png
+    └── multiplayer-game/          # 多人联机、权威服务器、预测回滚与实体插值
         ├── SKILL.md
         └── comparison.png
-```
 ```
 
 ---

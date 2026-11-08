@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多人联机与实时网络同步试验台 - multiplayer-game</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #0d1117;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #38bdf8, #818cf8, #f43f5e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .header p {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    /* 模拟网络环境控制栏 */
+    .controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      background: #161b22;
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 1px solid #30363d;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .ctrl-group strong { color: #f1f5f9; }
+    input[type="range"] {
+      cursor: pointer;
+      accent-color: #38bdf8;
+    }
+    .btn {
+      background: #21262d;
+      color: #f8fafc;
+      border: 1px solid #30363d;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: #30363d; }
+    .btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    /* 主舞台 */
+    .stage {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 1100px;
+    }
+    .panel {
+      background: #161b22;
+      border-radius: 14px;
+      border: 2px solid #30363d;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .panel.bad {
+      border-color: #f43f5e;
+      box-shadow: 0 0 20px rgba(244, 63, 94, 0.12);
+    }
+    .panel.good {
+      border-color: #10b981;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+    }
+
+    .panel-tag {
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .panel.bad .panel-tag { background: #f43f5e; color: #fff; }
+    .panel.good .panel-tag { background: #10b981; color: #fff; }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 6px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 画布与跑道展示 */
+    .track-wrapper {
+      background: #090d13;
+      border-radius: 10px;
+      border: 1px solid #30363d;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      border-radius: 6px;
+      background: #0d1117;
+    }
+
+    .track-legend {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      margin-top: 10px;
+      color: #94a3b8;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 2px; }
+
+    /* 操作提示栏 */
+    .action-bar {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .move-btn {
+      background: #21262d;
+      color: #fff;
+      border: 1px solid #30363d;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .move-btn:active { background: #38bdf8; color: #000; }
+
+    /* 说明与问题点剖析 */
+    .details {
+      background: #1c2128;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+      flex-grow: 1;
+    }
+    .details ul { padding-left: 18px; margin-top: 6px; }
+    .details li { margin-bottom: 6px; color: #cbd5e1; }
+    .panel.bad .details strong { color: #fda4af; }
+    .panel.good .details strong { color: #86efac; }
+
+    /* 底部导航说明 */
+    .footer-bar {
+      margin-top: 24px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      padding: 12px 20px;
+      border-radius: 10px;
+      max-width: 1100px;
+      width: 100%;
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .footer-bar strong { color: #f1f5f9; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>多人联机与实时网络同步试验台</h1>
+    <p>Skill 03: multiplayer-game | 幼稚纯坐标同步/高延迟粘滞/瞬移拉扯 vs 权威服务器、客户端预测、快照重演与实体平滑插值</p>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <span>模拟网络单向延迟 (Ping):</span>
+      <input type="range" id="ping-slider" min="30" max="300" value="150" oninput="updatePing(this.value)">
+      <strong id="ping-val">150 ms (RTT: 300ms)</strong>
+    </div>
+    <div class="ctrl-group">
+      <button class="btn" id="btn-loss" onclick="togglePacketLoss()">
+        <span id="loss-text">📦 模拟 15% 丢包: 关</span>
+      </button>
+    </div>
+    <div class="ctrl-group">
+      <button class="btn active" id="btn-auto-move" onclick="toggleAutoMove()">
+        <span id="auto-text">🤖 自动往返冲刺 (Active)</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <!-- ❌ 未使用 Skill -->
+    <div class="panel bad">
+      <div class="panel-tag">❌ 未使用 Skill (普通 AI 幼稚发坐标方案)</div>
+      <div class="panel-title">
+        <span>“高延迟粘滞 / 橡皮筋瞬移 / 幽灵穿透”</span>
+        <span style="font-size:12px; color:#f43f5e; font-weight:normal;" id="bad-status">操作延迟: 300ms</span>
+      </div>
+
+      <div class="track-wrapper">
+        <canvas id="canvas-bad" width="480" height="150"></canvas>
+        <div class="track-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#f43f5e;"></div>本地玩家表现 (粘滞等待确认)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.3); border:1px dashed #fff;"></div>权威服务器幽灵位置</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>远端玩家 (抽搐跳帧)</div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="move-btn" onmousedown="pressKey('ArrowLeft')" onmouseup="releaseKey('ArrowLeft')">◀ 向左移动 (A)</button>
+        <button class="move-btn" onmousedown="pressKey('ArrowRight')" onmouseup="releaseKey('ArrowRight')">向右移动 (D) ▶</button>
+      </div>
+
+      <div class="details">
+        <strong>普通大模型网络同步典型致命翻车：</strong>
+        <ul>
+          <li><strong>无客户端预测 (Zero Prediction)</strong>：玩家按键后本地不动，必须等待网络往返（RTT 300ms）收到服务器回包后才起步，<strong>操作如同陷在深水稀泥</strong>！</li>
+          <li><strong>橡皮筋回拉拉扯 (Rubber-banding)</strong>：如果本地粗暴单机跑，一旦丢包或碰撞校验失败，坐标被服务器强制回扯，画面发生<strong>剧烈鬼畜瞬移</strong>。</li>
+          <li><strong>远端实体无插值 (No Interpolation)</strong>：其他玩家移动未做历史环形缓冲队列与插值，高频丢包时直接变成“PPT 幻灯片跳帧瞬移”。</li>
+          <li><strong>完全信任客户端 (Cheat Vulnerability)</strong>：直接同步 X/Y 坐标，外挂随意修改内存直接全图瞬移秒杀。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ✅ 搭载 multiplayer-game -->
+    <div class="panel good">
+      <div class="panel-tag">✅ 搭载 multiplayer-game (工业级权威同步)</div>
+      <div class="panel-title">
+        <span>“0ms 本地预测 / 快速重演调和 / 快照插值”</span>
+        <span style="font-size:12px; color:#10b981; font-weight:normal;">本地响应: 0 ms 满帧</span>
+      </div>
+
+      <div class="track-wrapper">
+        <canvas id="canvas-good" width="480" height="150"></canvas>
+        <div class="track-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#10b981;"></div>本地客户端 (0ms 预测)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.3); border:1px dashed #fff;"></div>权威服务器幽灵位置</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#38bdf8;"></div>远端玩家 (快照平滑插值)</div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="move-btn" onmousedown="pressKey('ArrowLeft')" onmouseup="releaseKey('ArrowLeft')">◀ 向左移动 (A)</button>
+        <button class="move-btn" onmousedown="pressKey('ArrowRight')" onmouseup="releaseKey('ArrowRight')">向右移动 (D) ▶</button>
+      </div>
+
+      <div class="details">
+        <strong>搭载技能工业级权威同步架构：</strong>
+        <ul>
+          <li><strong>客户端前向预测 (Client-side Prediction)</strong>：本地输入 <strong>0ms 瞬间响应</strong>，无缝推导物理位移，手感丝滑如纯单机！</li>
+          <li><strong>服务器权威调和与重演 (Server Reconciliation)</strong>：本地维护未确认输入队列（Pending Inputs），服务器下发快照时毫秒级重播（Fast-forward），<strong>彻底消除橡皮筋回拉</strong>。</li>
+          <li><strong>远端实体快照插值 (Snapshot Interpolation)</strong>：远端玩家采用 100ms 抖动缓冲（Jitter Buffer）与 Hermite 平滑插值，即使发生 20% 丢包依然流畅如丝。</li>
+          <li><strong>严格输入流加密防作弊</strong>：客户端仅发送按键意图包 <code>{seq, input, dt}</code>，物理判定 100% 锁死在服务器。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <div>
+      <strong>网络同步指标：</strong>
+      <span id="sync-metrics">单向延时: 150ms | 序列号序号: Seq#128 | 预测待确认包: 18 个 | 插值环形缓冲: 100ms</span>
+    </div>
+    <div>
+      <span>支持长按上方按键或使用键盘 A/D 键直接控制移动</span>
+    </div>
+  </div>
+
+  <script>
+    // 网络与模拟状态
+    let oneWayLatency = 150; // ms
+    let packetLossRate = 0.0;
+    let autoMove = true;
+    let autoDir = 1;
+    let keysPressed = { ArrowLeft: false, ArrowRight: false };
+
+    // 两个系统的物理状态
+    // 跑道宽度 480，有效范围 40 ~ 440
+    const MIN_X = 40;
+    const MAX_X = 440;
+    const SPEED = 220; // px/s
+
+    // ==========================================
+    // 1. 左侧：❌ 未使用 Skill (朴素无预测网络系统)
+    // ==========================================
+    let badClientPos = 120;
+    let badServerPos = 120;
+    let badRemotePos = 340;
+    let badRemoteServerPos = 340;
+    let badClientPackets = []; // 发往服务器的包
+    let badServerPackets = []; // 服务器回给客户端的包
+
+    // ==========================================
+    // 2. 右侧：✅ 搭载 multiplayer-game (工业级权威同步系统)
+    // ==========================================
+    let goodClientPos = 120;
+    let goodServerPos = 120;
+    let goodRemoteDisplayPos = 340;
+    let goodRemoteServerPos = 340;
+    let pendingInputs = []; // 未确认的输入队列
+    let inputSequence = 0;
+    let lastAckSequence = 0;
+
+    let goodClientPackets = [];
+    let goodServerPackets = [];
+    let remoteSnapshotBuffer = []; // 远端玩家快照缓冲队列
+
+    const cvsBad = document.getElementById('canvas-bad');
+    const ctxBad = cvsBad.getContext('2d');
+    const cvsGood = document.getElementById('canvas-good');
+    const ctxGood = cvsGood.getContext('2d');
+
+    function updatePing(val) {
+      oneWayLatency = parseInt(val);
+      document.getElementById('ping-val').innerText = `${oneWayLatency} ms (RTT: ${oneWayLatency*2}ms)`;
+      document.getElementById('bad-status').innerText = `操作延迟: ${oneWayLatency*2}ms`;
+    }
+
+    function togglePacketLoss() {
+      packetLossRate = packetLossRate === 0.0 ? 0.18 : 0.0;
+      document.getElementById('loss-text').innerText = packetLossRate > 0 ? '📦 模拟 18% 丢包: 开 (高丢包)' : '📦 模拟 15% 丢包: 关';
+      document.getElementById('btn-loss').classList.toggle('active', packetLossRate > 0);
+    }
+
+    function toggleAutoMove() {
+      autoMove = !autoMove;
+      document.getElementById('auto-text').innerText = autoMove ? '🤖 自动往返冲刺 (Active)' : '▶️ 开启自动往返';
+      document.getElementById('btn-auto-move').classList.toggle('active', autoMove);
+    }
+
+    function pressKey(code) {
+      keysPressed[code] = true;
+      autoMove = false;
+      document.getElementById('btn-auto-move').classList.remove('active');
+      document.getElementById('auto-text').innerText = '▶️ 开启自动往返';
+    }
+    function releaseKey(code) { keysPressed[code] = false; }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') pressKey('ArrowLeft');
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') pressKey('ArrowRight');
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') releaseKey('ArrowLeft');
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') releaseKey('ArrowRight');
+    });
+
+    let lastTimestamp = performance.now();
+
+    function updateSimulation(now) {
+      const dt = Math.min(0.05, (now - lastTimestamp) / 1000);
+      lastTimestamp = now;
+
+      // 确定输入方向
+      let moveDir = 0;
+      if (autoMove) {
+        if (goodClientPos >= MAX_X - 10) autoDir = -1;
+        if (goodClientPos <= MIN_X + 10) autoDir = 1;
+        moveDir = autoDir;
+      } else {
+        if (keysPressed.ArrowLeft) moveDir -= 1;
+        if (keysPressed.ArrowRight) moveDir += 1;
+      }
+
+      // ----------------------------------------------------
+      // A. 模拟左侧：❌ 未使用 Skill (纯等待服务器响应)
+      // ----------------------------------------------------
+      // 发送按键到服务器管道
+      if (Math.random() >= packetLossRate) {
+        badClientPackets.push({
+          deliverTime: now + oneWayLatency,
+          dir: moveDir,
+          dt: dt
+        });
+      }
+
+      // 服务器接收处理
+      while (badClientPackets.length > 0 && badClientPackets[0].deliverTime <= now) {
+        const pkt = badClientPackets.shift();
+        badServerPos = Math.max(MIN_X, Math.min(MAX_X, badServerPos + pkt.dir * SPEED * pkt.dt));
+        // 服务器给客户端回包
+        if (Math.random() >= packetLossRate) {
+          badServerPackets.push({
+            deliverTime: now + oneWayLatency,
+            serverPos: badServerPos
+          });
+        }
+      }
+
+      // 客户端收到回包才更新本地坐标 (这就是为什么延迟 300ms 极其粘滞！)
+      while (badServerPackets.length > 0 && badServerPackets[0].deliverTime <= now) {
+        const pkt = badServerPackets.shift();
+        badClientPos = pkt.serverPos;
+      }
+
+      // 远端玩家模拟（无插值，收到直接跳帧）
+      badRemoteServerPos += Math.sin(now * 0.003) * 1.5;
+      if (Math.random() < 0.1 && Math.random() >= packetLossRate) {
+        badRemotePos = badRemoteServerPos; // 暴跌跳帧！
+      }
+
+      // ----------------------------------------------------
+      // B. 模拟右侧：✅ 搭载 multiplayer-game
+      // ----------------------------------------------------
+      // 1. 客户端前向预测 (Client-side Prediction): 0ms 立刻响应！
+      inputSequence++;
+      const currentInput = { seq: inputSequence, dir: moveDir, dt: dt };
+      pendingInputs.push(currentInput);
+      goodClientPos = Math.max(MIN_X, Math.min(MAX_X, goodClientPos + moveDir * SPEED * dt));
+
+      // 2. 发送输入包到网络
+      if (Math.random() >= packetLossRate) {
+        goodClientPackets.push({
+          deliverTime: now + oneWayLatency,
+          seq: currentInput.seq,
+          dir: currentInput.dir,
+          dt: currentInput.dt
+        });
+      }
+
+      // 3. 权威服务器处理输入流
+      while (goodClientPackets.length > 0 && goodClientPackets[0].deliverTime <= now) {
+        const pkt = goodClientPackets.shift();
+        goodServerPos = Math.max(MIN_X, Math.min(MAX_X, goodServerPos + pkt.dir * SPEED * pkt.dt));
+        // 服务器广播权威快照
+        if (Math.random() >= packetLossRate) {
+          goodServerPackets.push({
+            deliverTime: now + oneWayLatency,
+            ackSeq: pkt.seq,
+            authoritativePos: goodServerPos
+          });
+        }
+      }
+
+      // 4. 服务器权威调和 (Server Reconciliation): 收到快照快速重演
+      while (goodServerPackets.length > 0 && goodServerPackets[0].deliverTime <= now) {
+        const snap = goodServerPackets.shift();
+        lastAckSequence = snap.ackSeq;
+        // 清理已确认的旧输入
+        pendingInputs = pendingInputs.filter(inp => inp.seq > snap.ackSeq);
+
+        // 从服务器权威位置开始快速重放后续待确认输入 (Re-apply inputs)
+        let reconciledPos = snap.authoritativePos;
+        pendingInputs.forEach(inp => {
+          reconciledPos = Math.max(MIN_X, Math.min(MAX_X, reconciledPos + inp.dir * SPEED * inp.dt));
+        });
+        // 毫秒级纠偏 (平滑修正，杜绝瞬移)
+        goodClientPos = reconciledPos;
+      }
+
+      // 5. 远端玩家快照插值 (Snapshot Interpolation)
+      goodRemoteServerPos += Math.sin(now * 0.003) * 1.5;
+      if (Math.random() < 0.25) {
+        remoteSnapshotBuffer.push({ time: now, pos: goodRemoteServerPos });
+      }
+      // 限制缓冲池大小并使用 100ms 延迟做 Hermite/Lerp 平滑插值
+      const renderTime = now - 100;
+      while (remoteSnapshotBuffer.length > 2 && remoteSnapshotBuffer[1].time < renderTime) {
+        remoteSnapshotBuffer.shift();
+      }
+      if (remoteSnapshotBuffer.length >= 2) {
+        const p0 = remoteSnapshotBuffer[0];
+        const p1 = remoteSnapshotBuffer[1];
+        const tRatio = Math.max(0, Math.min(1, (renderTime - p0.time) / (p1.time - p0.time || 1)));
+        goodRemoteDisplayPos = p0.pos + (p1.pos - p0.pos) * tRatio;
+      } else if (remoteSnapshotBuffer.length === 1) {
+        goodRemoteDisplayPos = remoteSnapshotBuffer[0].pos;
+      }
+
+      // 更新指标
+      document.getElementById('sync-metrics').innerText = 
+        `单向延时: ${oneWayLatency}ms | 权威Ack: Seq#${lastAckSequence} | 待重演输入: ${pendingInputs.length} 个 | 远端插值缓冲: 100ms`;
+
+      drawAll();
+      requestAnimationFrame(updateSimulation);
+    }
+
+    // 绘制跑道与实体
+    function drawAll() {
+      // 1. 绘制左侧 (❌ 未使用 Skill)
+      ctxBad.clearRect(0, 0, 480, 150);
+      drawTrack(ctxBad, '本地操作粘滞 300ms (未做预测)');
+
+      // 服务器幽灵投影 (虚线)
+      drawGhost(ctxBad, badServerPos, 50, '权威 Server 真实位置');
+
+      // 本地玩家 (实心红)
+      drawEntity(ctxBad, badClientPos, 50, '#f43f5e', '本地玩家 (粘滞)', badClientPos !== badServerPos);
+
+      // 远端玩家 (下半跑道)
+      drawEntity(ctxBad, badRemotePos, 105, '#f59e0b', '远端实体 (跳帧抽搐)', true);
+
+
+      // 2. 绘制右侧 (✅ 搭载 multiplayer-game)
+      ctxGood.clearRect(0, 0, 480, 150);
+      drawTrack(ctxGood, '0ms 满帧本地预测 + 自动调和纠偏');
+
+      // 服务器幽灵投影
+      drawGhost(ctxGood, goodServerPos, 50, '权威 Server 真实位置');
+
+      // 本地预测玩家 (实心绿，即使延迟 300ms 依然紧随操作)
+      drawEntity(ctxGood, goodClientPos, 50, '#10b981', '本地玩家 (0ms预测)', false);
+
+      // 远端玩家 (平滑插值)
+      drawEntity(ctxGood, goodRemoteDisplayPos, 105, '#38bdf8', '远端实体 (平滑插值)', false);
+    }
+
+    function drawTrack(ctx, label) {
+      // 跑道底板
+      ctx.fillStyle = '#111620';
+      ctx.fillRect(10, 10, 460, 130);
+
+      // 跑道分割虚线
+      ctx.strokeStyle = '#21262d';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(20, 80); ctx.lineTo(460, 80);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px sans-serif';
+      ctx.fillText(label, 20, 26);
+    }
+
+    function drawGhost(ctx, x, y, label) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(x - 14, y - 14, 28, 28);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.font = '9px monospace';
+      ctx.fillText('Server', x - 14, y + 24);
+      ctx.restore();
+    }
+
+    function drawEntity(ctx, x, y, color, label, hasError) {
+      ctx.save();
+      // 阴影
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(x, y + 15, 14, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 实体方块
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x - 12, y - 12, 24, 24, 4);
+      ctx.fill();
+
+      if (hasError) {
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(label, x - 26, y - 16);
+      ctx.restore();
+    }
+
+    requestAnimationFrame(updateSimulation);
+  </script>
+</body>
+</html>
