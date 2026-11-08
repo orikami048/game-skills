@@ -148,6 +148,25 @@
 
 ---
 
+### 9. `procedural-level-design`：程序化关卡、BSP 地牢划分与 A* 必达通关拓扑（静态架构参考）
+
+![程序化关卡与随机地图生成对比图](assets/level_comparison.png)
+
+* **❌ 未使用 Skill（纯噪点麻子脸 / 绝壁死图 / 逻辑死锁）**：
+  * **毫无结构的麻子脸**：直接用 `Math.random() > 0.45` 随机撒点，没有主次动线，没有房间与走廊之分；
+  * **致命死图阻绝 (Unreachable)**：出生点 S 到 Boss 房 E 被死死封死，A* 寻路无解，通关率为 0%，玩家被迫强退死档；
+  * **钥匙在门后悖论**：缺少图论拓扑因果约束，钥匙被随机刷在锁着的门后，产生逻辑死锁；
+  * **无种子不可复现**：每次运行完全玄学随机，线上恶性地形 Bug 根本无法通过 Seed 还原。
+* **✅ 搭载 `procedural-level-design`（工业级 PCG 关卡管线）**：
+  * **BSP 二叉空间树划分 (Binary Space Partitioning)**：大块空间递归切割，自动生成主厅、辅房与回廊，节奏张弛有度；
+  * **A* 与泛洪算法连通性兜底 (Guaranteed Reachability)**：关卡生成后自动做拓扑连通性校验，若有孤岛自动凿穿走廊，**100% 杜绝死图**；
+  * **严格有向无环图锁钥拓扑 (Key-Lock DAG)**：钥匙必定且唯一生成在门的前置分支上，坚决杜绝“钥匙在门后”的死锁悖论；
+  * **Mulberry32 纯数学种子驱动**：同一串 Seed（如 `#SEED-4829`）在任意平台毫秒级复现绝对一致的地图，完美支持每日挑战天梯榜（Daily Run）。
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验程序化关卡与随机地图试验台](https://orikami048.github.io/game-skills/prototypes/level_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/level_showcase.html](http://localhost:8088/prototypes/level_showcase.html))*
+
+---
+
 ## 🤖 适配与实测推荐模型矩阵 (Model Matrix)
 
 为确保 Skills 发挥最佳效果，针对不同开发环节推荐选用最匹配的模型：
@@ -157,6 +176,7 @@
 | **代码实现与手感逻辑** | **Gemini 3.8 Flash (High)**<br>*(实操验证推荐)* | 响应迅速，逻辑严密。能准确理解 60FPS 游戏循环中的顿帧挂起、阻尼摩擦力数学公式与 0ms 像素位移。 |
 | **高复杂度底层系统与网络** | **Claude 3.7 Sonnet** / **Gemini 3.8 Pro** | 适合生成复杂的 Modifier 属性管线、Godot/Unity HLSL 像素着色器以及多人帧同步/预测回滚逻辑。 |
 | **像素资产出图 (Sprite/UI)** | **Imagen 3 (Fast / HQ)** / **Gemini 3.8 Flash ImageGen** | 对 `#FF00FF` 品红底与“无外发光、无抗锯齿”负面提示词执行力强，网格漂移率极低。 |
+| **程序化关卡与图论拓扑** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间二叉树切分紧凑，极擅长 A* 泛洪校验、锁钥 DAG 依赖与 Mulberry32 位运算。 |
 | **手柄导航与人机工效设计** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间几何射线检测推导强，极度熟悉 Focus Trap 焦点栈防穿透与 Nielsen 人机工效学。 |
 | **风格锚点与概念原画** | **Midjourney v6 (`--style raw`)** | 适合立项初期确立复古调色盘与全局艺术基调。 |
 
@@ -171,7 +191,8 @@ game-skills/
 │   ├── ui_comparison.png          # 16-Bit UI 左右分屏实机对比
 │   ├── feel_comparison.png        # Game Feel 高能打击感命中实机图
 │   ├── ui_ux_comparison.png       # UI/UX 人机工效与手柄焦点架构图
-│   └── pixel_assets_comparison.png# 像素资产真假对比与瓦片架构图
+│   ├── pixel_assets_comparison.png# 像素资产真假对比与瓦片架构图
+│   └── level_comparison.png       # 程序化关卡与拓扑必达路径图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
@@ -180,7 +201,8 @@ game-skills/
 │   ├── ui_showcase.html           # 16-Bit UI 交互原型 (SFC 边框/4px下沉/扫描线)
 │   ├── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
 │   ├── ui_ux_showcase.html        # UI/UX 人机工效与焦点陷阱试验台
-│   └── pixel_assets_showcase.html # 像素点阵与无缝自动瓦片试验台
+│   ├── pixel_assets_showcase.html # 像素点阵与无缝自动瓦片试验台
+│   └── level_showcase.html        # 程序化关卡与拓扑必达路径试验台
 └── skills/                        # 核心技能正本
     ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
     │   ├── SKILL.md
@@ -203,7 +225,10 @@ game-skills/
     ├── game-ui-ux/                # 游戏 UI/UX 交互人机工效与手柄空间焦点
     │   ├── SKILL.md
     │   └── comparison.png
-    └── pixel-art-game-assets/     # 像素游戏美术资产规范、真点阵与自动瓦片
+    ├── pixel-art-game-assets/     # 像素游戏美术资产规范、真点阵与自动瓦片
+    │   ├── SKILL.md
+    │   └── comparison.png
+    └── procedural-level-design/   # 程序化关卡、BSP 二叉树与 A* 必达通关拓扑
         ├── SKILL.md
         └── comparison.png
 ```
