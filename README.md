@@ -21,7 +21,8 @@
   * **时钟标尺绝对安全冻结**：引入严格的 **TimeScale = 0.0** 分层调度，怪物与投射物绝对锁死休眠，安全接收 UI 输入；
   * **数据驱动加权抽卡**：自动校验前置条件依赖（如拥有火球才可解锁分裂），无放回加权抽样绝对不重复；
   * **Modifier 属性四层管线**：Base -> Flat -> PercentAdd -> Multiplier，数值严密重算无副作用。
-* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/loop_showcase.html`](prototypes/loop_showcase.html)
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验肉鸽核心循环](https://orikami048.github.io/game-skills/prototypes/loop_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/loop_showcase.html](http://localhost:8088/prototypes/loop_showcase.html))*
 
 #### 🌐 真实游戏业务落地场景与实战举例 (为什么能让游戏 Bug 锐减 90%？)
 
@@ -48,7 +49,8 @@
   * **阶梯像素血条**：3 级定值色阶表达体积，拒绝任何平滑渐变；
   * **街机微动手感**：0ms 渐变延迟，按压纯物理**下沉 4px**，高光与阴影瞬态反转；
   * **复古滤镜支持**：内置可选 CRT 显像管扫描线（Scanlines）光栅。
-* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/ui_showcase.html`](prototypes/ui_showcase.html)
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验 16-Bit UI 原型](https://orikami048.github.io/game-skills/prototypes/ui_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/ui_showcase.html](http://localhost:8088/prototypes/ui_showcase.html))*
 
 ---
 
@@ -61,7 +63,8 @@
   * **空间哈希网格（Spatial Hash Grid）**：将世界切分为 40px 单元格，仅对同格及周边 8 格做局部检测，计算量骤降 95%，帧率稳定满帧 60 FPS；
   * **零分配对象池（Zero-allocation Pool）**：预热实体并复用，0 次运行时临时分配，内存曲线平滑如镜，根除 GC Spike 掉帧；
   * **组合优于继承（Composition）**：解耦全局单例 God Object，场景生命周期严格托管清理，杜绝跨关卡内存泄漏。
-* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/engine_showcase.html`](prototypes/engine_showcase.html)
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验 800 实体性能压测](https://orikami048.github.io/game-skills/prototypes/engine_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/engine_showcase.html](http://localhost:8088/prototypes/engine_showcase.html))*
 
 ---
 
@@ -74,7 +77,8 @@
   * **半固定时间步长累加器（Fixed Timestep）**：物理恒定 60Hz 切分子步长迭代，任何高刷屏或严重掉帧下**绝对阻断穿模**；
   * **Action-based 输入抽象映射**：键盘、手柄摇杆与屏幕触控摇杆统一由适配器归一化派发，100% 跨平台代码零修改；
   * **音频总线声池**：三路分流（Master/BGM/SFX），并发限幅防爆音削顶破音。
-* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/developer_showcase.html`](prototypes/developer_showcase.html)
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验输入抽象与防穿模试验台](https://orikami048.github.io/game-skills/prototypes/developer_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/developer_showcase.html](http://localhost:8088/prototypes/developer_showcase.html))*
 
 ---
 
@@ -90,7 +94,8 @@
   * **弹性挤压拉伸（Squash & Stretch）**：受击瞬间横向拉宽 **1.45 倍**、纵向压扁，呈现肉质弹性受力；
   * **切向爆裂火花**：沿挥砍法线锥形喷涌 28 颗高初速重力火花；
   * **声学协同**：纯数学合成低频钝击沉闷重音（Impact Thud）与破裂噪音。
-* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/feel_showcase.html`](prototypes/feel_showcase.html)（支持按空格键挥刀、自由开关顿帧/震屏/白闪）
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验打击感 60FPS 战斗试验台](https://orikami048.github.io/game-skills/prototypes/feel_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/feel_showcase.html](http://localhost:8088/prototypes/feel_showcase.html))*
 
 ---
 
