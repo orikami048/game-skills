@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js 3D 游戏空间 UI 试验台 - threejs-game-ui-designer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #0b0d14;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f472b6, #ec4899, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .header p {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    /* 控制栏 */
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      background: #181b26;
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn {
+      background: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: #475569; }
+    .btn.active {
+      background: #db2777;
+      border-color: #f472b6;
+      box-shadow: 0 0 12px rgba(219, 39, 119, 0.4);
+    }
+
+    /* 左右分屏对比舞台 */
+    .stage {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 1100px;
+    }
+    .panel {
+      background: #141722;
+      border-radius: 14px;
+      border: 2px solid #2d3748;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .panel.bad {
+      border-color: #ef4444;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.12);
+    }
+    .panel.good {
+      border-color: #10b981;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+    }
+
+    .panel-tag {
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .panel.bad .panel-tag { background: #ef4444; color: #fff; }
+    .panel.good .panel-tag { background: #10b981; color: #fff; }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 6px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 3D 视口 */
+    .viewport-box {
+      background: #090a10;
+      border-radius: 10px;
+      border: 1px solid #2d3748;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+    canvas:active { cursor: grabbing; }
+
+    .hud-hint {
+      position: absolute;
+      bottom: 8px;
+      left: 10px;
+      font-size: 10px;
+      color: #94a3b8;
+      pointer-events: none;
+      background: rgba(0,0,0,0.6);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* 问题与解法列表 */
+    .details {
+      background: #191c28;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+      flex-grow: 1;
+    }
+    .details ul {
+      padding-left: 18px;
+      margin-top: 6px;
+    }
+    .details li {
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+    .panel.bad .details strong { color: #fca5a5; }
+    .panel.good .details strong { color: #86efac; }
+
+    /* 底部导航栏 */
+    .footer-bar {
+      margin-top: 24px;
+      background: #141722;
+      border: 1px solid #334155;
+      padding: 12px 20px;
+      border-radius: 10px;
+      max-width: 1100px;
+      width: 100%;
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .footer-bar strong { color: #e2e8f0; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Three.js 3D 游戏空间 UI 试验台</h1>
+    <p>Skill 09: threejs-game-ui-designer | 穿模遮挡/侧视扁线/镜像反转 vs Billboard 空间对齐、透视缩放与屏幕边缘雷达钳位</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn active" id="btn-orbit" onclick="toggleAutoRotate()">
+      <span id="rotate-text">🔄 自动旋转视角 (Orbiting)</span>
+    </button>
+    <button class="btn" onclick="triggerEnemyMove()">
+      <span>👾 移动敌人位置 (移向身后/远方)</span>
+    </button>
+    <button class="btn" onclick="resetCamera()">
+      <span>🎯 重置摄像机视角</span>
+    </button>
+  </div>
+
+  <div class="stage">
+    <!-- ❌ 未使用 Skill -->
+    <div class="panel bad">
+      <div class="panel-tag">❌ 未使用 Skill (普通 AI 简单空间挂载)</div>
+      <div class="panel-title">
+        <span>“侧视扁线 / 墙体穿模 / 屏幕外镜像倒飞”</span>
+        <span style="font-size:12px; color:#ef4444; font-weight:normal;">Z-Fighting 穿模</span>
+      </div>
+
+      <div class="viewport-box">
+        <canvas id="canvas-bad" width="300" height="280"></canvas>
+        <div class="hud-hint">按住鼠标左键可拖拽旋转 3D 视角</div>
+      </div>
+
+      <div class="details">
+        <strong>普通大模型编写 3D UI 典型致命硬伤：</strong>
+        <ul>
+          <li><strong>缺少 Billboard 摄像机对齐 (No Facing)</strong>：UI 仅仅作为一个固定的 3D 平面贴在敌人头顶。视角转到侧面时，<strong>血条直接变成了一条看不见的薄线</strong>！</li>
+          <li><strong>被场景墙体深度切断 (Depth Clipping)</strong>：未禁用 <code>depthTest</code> 或未设置分层渲染通道，敌人走到障碍物后方时，头顶 UI 被墙壁粗暴切成两半。</li>
+          <li><strong>屏幕外镜像倒飞 (Behind Camera Inversion)</strong>：敌人走到摄像机后方时，直接除以负的 $W$ 分量导致未做剔除，UI 镜像颠倒倒飞到屏幕正中央。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ✅ 搭载 threejs-game-ui-designer -->
+    <div class="panel good">
+      <div class="panel-tag">✅ 搭载 threejs-game-ui-designer (工业级规范)</div>
+      <div class="panel-title">
+        <span>“Billboard 视线锁定 / 距离衰减 / 边缘雷达”</span>
+        <span style="font-size:12px; color:#10b981; font-weight:normal;">空间绝对对齐</span>
+      </div>
+
+      <div class="viewport-box">
+        <canvas id="canvas-good" width="300" height="280"></canvas>
+        <div class="hud-hint">按住鼠标左键可拖拽旋转 3D 视角</div>
+      </div>
+
+      <div class="details">
+        <strong>搭载技能工业级 3D 空间 UI 规范：</strong>
+        <ul>
+          <li><strong>四元数法线绝对对齐 (Spherical Billboard)</strong>：每一帧实时同步 <code>quaternion.copy(camera.quaternion)</code>，无论摄像机如何俯仰旋转，血条永远正对屏幕。</li>
+          <li><strong>深度穿模覆盖 (Depth Buffer Override)</strong>：设置 <code>depthTest=false</code> 与独立渲染层级，敌人虽被墙遮挡，但 HUD 高对比穿透半透提示。</li>
+          <li><strong>视网膜边缘雷达钳位 (Off-screen Viewport Clamping)</strong>：敌人移出视野或移到摄像机背后时，自动进行视口边缘裁切并贴边显示<strong>呼吸警示三角标与精准米数</strong>！</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <div>
+      <strong>3D 摄像机投影状态：</strong>
+      <span id="cam-status">Yaw: 30° | Pitch: 25° | 敌人坐标: (2.2, 1.0, -1.8)</span>
+    </div>
+    <div>
+      <span>支持鼠标拖拽旋转两边视口，直观观察 3D UI 遮挡与投影表现</span>
+    </div>
+  </div>
+
+  <script>
+    // 3D 渲染与摄像机数学（纯内联原生三维透视投影视口）
+    let yaw = 0.0;     // 水平角
+    let pitch = 0.35;  // 俯仰角
+    let camDist = 6.2; // 摄像机距离
+    let autoRotate = false; // 初始静止，方便截图与观察
+    let enemyPos = { x: 0.8, y: 0.0, z: -0.5 };
+    let enemyTargetPos = { x: 0.8, y: 0.0, z: -0.5 };
+    let enemyWaypoints = [
+      { x: 0.8, y: 0.0, z: -0.5 }, // 位于掩体后方半遮挡状态
+      { x: -0.5, y: 0.0, z: 4.2 }, // 摄像机后方 (屏幕外触发雷达)
+      { x: -2.8, y: 0.0, z: -1.8 }, // 左前方
+      { x: 0.0, y: 0.0, z: -4.0 }   // 正远方
+    ];
+    let waypointIdx = 0;
+
+    const cvsBad = document.getElementById('canvas-bad');
+    const ctxBad = cvsBad.getContext('2d');
+    const cvsGood = document.getElementById('canvas-good');
+    const ctxGood = cvsGood.getContext('2d');
+
+    // 鼠标交互控制
+    let isDragging = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
+    function handleMouseDown(e) {
+      isDragging = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      autoRotate = false;
+      document.getElementById('rotate-text').innerText = '▶️ 开启自动旋转';
+      document.getElementById('btn-orbit').classList.remove('active');
+    }
+
+    function handleMouseMove(e) {
+      if (!isDragging) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+
+      yaw += dx * 0.01;
+      pitch = Math.max(0.1, Math.min(1.4, pitch + dy * 0.01));
+      updateStatus();
+    }
+
+    function handleMouseUp() { isDragging = false; }
+
+    [cvsBad, cvsGood].forEach(c => {
+      c.addEventListener('mousedown', handleMouseDown);
+    });
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    function toggleAutoRotate() {
+      autoRotate = !autoRotate;
+      document.getElementById('rotate-text').innerText = autoRotate ? '🔄 自动旋转视角 (Orbiting)' : '▶️ 开启自动旋转';
+      document.getElementById('btn-orbit').classList.toggle('active', autoRotate);
+    }
+
+    function triggerEnemyMove() {
+      waypointIdx = (waypointIdx + 1) % enemyWaypoints.length;
+      enemyTargetPos = enemyWaypoints[waypointIdx];
+    }
+
+    function resetCamera() {
+      yaw = 0.55;
+      pitch = 0.38;
+      camDist = 6.8;
+      updateStatus();
+    }
+
+    function updateStatus() {
+      document.getElementById('cam-status').innerText = 
+        `Yaw: ${(yaw*180/Math.PI).toFixed(0)}° | Pitch: ${(pitch*180/Math.PI).toFixed(0)}° | 敌人坐标: (${enemyPos.x.toFixed(1)}, ${enemyPos.y.toFixed(1)}, ${enemyPos.z.toFixed(1)})`;
+    }
+
+    // 3D 投影核心数学
+    function project3D(x, y, z, width, height) {
+      // 1. 摄像机世界位置
+      const cx = camDist * Math.cos(pitch) * Math.sin(yaw);
+      const cy = camDist * Math.sin(pitch);
+      const cz = camDist * Math.cos(pitch) * Math.cos(yaw);
+
+      // 2. 世界坐标平移到摄像机相对坐标
+      const rx = x - cx;
+      const ry = y - cy;
+      const rz = z - cz;
+
+      // 3. 绕 Y 轴逆旋转 (yaw)
+      const cosY = Math.cos(-yaw);
+      const sinY = Math.sin(-yaw);
+      const x1 = rx * cosY - rz * sinY;
+      const z1 = rx * sinY + rz * cosY;
+
+      // 4. 绕 X 轴逆旋转 (pitch)
+      const cosP = Math.cos(pitch);
+      const sinP = Math.sin(pitch);
+      const y2 = ry * cosP - z1 * sinP;
+      const z2 = ry * sinP + z1 * cosP;
+
+      // z2 即为摄像机前向深度 (Camera View Space Z: 负数为摄像机前，正数为摄像机后)
+      const viewDepth = -z2;
+      const fov = 320; // 焦距
+
+      return {
+        screenX: width / 2 + (x1 * fov) / Math.max(0.1, viewDepth),
+        screenY: height / 2 - (y2 * fov) / Math.max(0.1, viewDepth),
+        depth: viewDepth,
+        scale: fov / Math.max(0.1, viewDepth)
+      };
+    }
+
+    // 绘制 3D 地面网格
+    function drawGroundGrid(ctx, width, height) {
+      ctx.strokeStyle = '#1e2433';
+      ctx.lineWidth = 1;
+      const range = 5;
+      for (let i = -range; i <= range; i++) {
+        // 横线
+        const p1 = project3D(-range, 0, i, width, height);
+        const p2 = project3D(range, 0, i, width, height);
+        if (p1.depth > 0.5 && p2.depth > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(p1.screenX, p1.screenY);
+          ctx.lineTo(p2.screenX, p2.screenY);
+          ctx.stroke();
+        }
+        // 竖线
+        const p3 = project3D(i, 0, -range, width, height);
+        const p4 = project3D(i, 0, range, width, height);
+        if (p3.depth > 0.5 && p4.depth > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(p3.screenX, p3.screenY);
+          ctx.lineTo(p4.screenX, p4.screenY);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 绘制 3D 掩体墙体 (障碍物)
+    function drawObstacleWall(ctx, width, height) {
+      // 位于 (1.0, 0, -0.5) 的一道高墙
+      const wallCorners = [
+        {x: 0.5, y: 0, z: -0.8},
+        {x: 2.5, y: 0, z: -0.2},
+        {x: 2.5, y: 2.2, z: -0.2},
+        {x: 0.5, y: 2.2, z: -0.8}
+      ];
+      const pts = wallCorners.map(c => project3D(c.x, c.y, c.z, width, height));
+      if (pts.every(p => p.depth > 0.5)) {
+        ctx.fillStyle = '#2d3748';
+        ctx.strokeStyle = '#4a5568';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].screenX, pts[0].screenY);
+        ctx.lineTo(pts[1].screenX, pts[1].screenY);
+        ctx.lineTo(pts[2].screenX, pts[2].screenY);
+        ctx.lineTo(pts[3].screenX, pts[3].screenY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#a0aec0';
+        ctx.font = '10px sans-serif';
+        const midX = (pts[0].screenX + pts[2].screenX) / 2;
+        const midY = (pts[0].screenY + pts[2].screenY) / 2;
+        ctx.fillText('3D 掩体阻挡墙', midX - 30, midY);
+      }
+    }
+
+    // 绘制 3D 敌人胶囊体
+    function drawEnemyMesh(ctx, pos, width, height) {
+      const base = project3D(pos.x, pos.y, pos.z, width, height);
+      const top = project3D(pos.x, pos.y + 1.6, pos.z, width, height);
+      if (base.depth > 0.5 && top.depth > 0.5) {
+        const radius = 18 * (base.scale / 50);
+        // 敌人阴影
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.ellipse(base.screenX, base.screenY, radius * 1.2, radius * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 敌人身体
+        ctx.fillStyle = '#ef4444';
+        ctx.strokeStyle = '#fca5a5';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(top.screenX, (base.screenY + top.screenY) / 2, radius, (base.screenY - top.screenY) / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // 主动画循环
+    function render(time) {
+      // 视角平滑自转
+      if (autoRotate) {
+        yaw += 0.006;
+        updateStatus();
+      }
+
+      // 敌人位置插值
+      enemyPos.x += (enemyTargetPos.x - enemyPos.x) * 0.05;
+      enemyPos.y += (enemyTargetPos.y - enemyPos.y) * 0.05;
+      enemyPos.z += (enemyTargetPos.z - enemyPos.z) * 0.05;
+
+      const W = 300;
+      const H = 280;
+
+      // ==========================================
+      // 1. 渲染左侧：❌ 未使用 Skill (翻车演示)
+      // ==========================================
+      ctxBad.clearRect(0, 0, W, H);
+      ctxBad.fillStyle = '#0e111a';
+      ctxBad.fillRect(0, 0, W, H);
+
+      drawGroundGrid(ctxBad, W, H);
+
+      // 先画敌人
+      drawEnemyMesh(ctxBad, enemyPos, W, H);
+
+      // 普通 AI 的 UI（固定的 3D 平面，未做 Billboard 视线对齐）
+      // 计算其朝向：因为没做 Billboard，它永远面向世界 Z 轴
+      const headPos = { x: enemyPos.x, y: enemyPos.y + 1.9, z: enemyPos.z };
+      // 左右两个顶点在世界坐标中沿 X 轴排布 (未做摄像机法线对齐)
+      const uiL = project3D(headPos.x - 0.7, headPos.y, headPos.z, W, H);
+      const uiR = project3D(headPos.x + 0.7, headPos.y, headPos.z, W, H);
+
+      // 致命伤 1：如果是摄像机后方（depth < 0），普通 AI 直接除以负数导致镜像倒飞到屏幕前
+      if (uiL.depth < 0 || uiR.depth < 0) {
+        ctxBad.fillStyle = '#ef4444';
+        ctxBad.font = 'bold 11px sans-serif';
+        // 倒飞颠倒的假血条
+        ctxBad.fillRect(W/2 - 40, H/2 - 10, 80, 12);
+        ctxBad.fillStyle = '#fff';
+        ctxBad.fillText('⚠️ 镜像倒飞 (在背后却显示在屏前)', 40, H/2 + 25);
+      } else {
+        // 致命伤 2：侧视时投影宽度严重压缩成薄线
+        const barW = Math.abs(uiR.screenX - uiL.screenX);
+        const barH = 10 * (uiL.scale / 50);
+
+        ctxBad.save();
+        ctxBad.translate((uiL.screenX + uiR.screenX)/2, (uiL.screenY + uiR.screenY)/2);
+
+        if (barW < 12) {
+          // 已经变成侧面一条扁线！
+          ctxBad.fillStyle = '#ef4444';
+          ctxBad.fillRect(-1, -15, 2, 30);
+          ctxBad.font = '10px sans-serif';
+          ctxBad.fillText('⚠️ 侧视扁线 (失真看不见)', 8, 0);
+        } else {
+          ctxBad.fillStyle = 'rgba(0,0,0,0.8)';
+          ctxBad.fillRect(-barW/2, -barH/2, barW, barH);
+          ctxBad.fillStyle = '#ef4444';
+          ctxBad.fillRect(-barW/2 + 1, -barH/2 + 1, barW * 0.65, barH - 2);
+          ctxBad.fillStyle = '#fff';
+          ctxBad.font = '9px sans-serif';
+          ctxBad.fillText('Lv.18 狂暴骨弓', -barW/2, -barH/2 - 3);
+        }
+        ctxBad.restore();
+      }
+
+      // 后画掩体高墙 (致命伤 3：把血条活活截断穿模)
+      drawObstacleWall(ctxBad, W, H);
+
+
+      // ==========================================
+      // 2. 渲染右侧：✅ 搭载 threejs-game-ui-designer
+      // ==========================================
+      ctxGood.clearRect(0, 0, W, H);
+      ctxGood.fillStyle = '#0e111a';
+      ctxGood.fillRect(0, 0, W, H);
+
+      drawGroundGrid(ctxGood, W, H);
+      drawObstacleWall(ctxGood, W, H); // 先画墙体
+      drawEnemyMesh(ctxGood, enemyPos, W, H); // 画敌人
+
+      // 工业级 3D 空间 UI 投影处理
+      const gHead = project3D(enemyPos.x, enemyPos.y + 1.9, enemyPos.z, W, H);
+
+      // 屏幕安全区边缘 (Margin 20px)
+      const margin = 24;
+      const isBehind = gHead.depth <= 0.2; // 在摄像机后方
+      const isOffScreen = isBehind || gHead.screenX < margin || gHead.screenX > W - margin || gHead.screenY < margin || gHead.screenY > H - margin;
+
+      if (isOffScreen) {
+        // 核心规范 1：屏幕外边缘雷达钳位 (Off-screen Viewport Clamping)
+        let dirX = gHead.screenX - W / 2;
+        let dirY = gHead.screenY - H / 2;
+
+        if (isBehind) {
+          // 摄像机背面反转 180°
+          dirX = -dirX;
+          dirY = -dirY;
+        }
+
+        const angle = Math.atan2(dirY, dirX);
+        const clampX = Math.max(margin, Math.min(W - margin, W / 2 + Math.cos(angle) * (W / 2 - margin)));
+        const clampY = Math.max(margin, Math.min(H - margin, H / 2 + Math.sin(angle) * (H / 2 - margin)));
+
+        // 绘制边缘呼吸警示雷达标
+        ctxGood.save();
+        ctxGood.translate(clampX, clampY);
+        ctxGood.rotate(angle);
+
+        // 警示箭头
+        ctxGood.fillStyle = '#f43f5e';
+        ctxGood.beginPath();
+        ctxGood.moveTo(12, 0);
+        ctxGood.lineTo(-8, -8);
+        ctxGood.lineTo(-4, 0);
+        ctxGood.lineTo(-8, 8);
+        ctxGood.closePath();
+        ctxGood.fill();
+        ctxGood.restore();
+
+        // 距离显示
+        ctxGood.fillStyle = '#f8fafc';
+        ctxGood.font = 'bold 10px monospace';
+        const distMeters = Math.hypot(enemyPos.x, enemyPos.z).toFixed(1);
+        ctxGood.fillText(`${distMeters}m`, clampX - 10, clampY - 12);
+
+      } else {
+        // 核心规范 2：Spherical Billboard (严格对齐摄像机法线，永远正对屏幕)
+        // 核心规范 3：深度穿透半透明渲染 (Depth buffer override)
+        const uiScale = Math.max(0.6, Math.min(1.4, gHead.scale / 48));
+        const barW = 75 * uiScale;
+        const barH = 8 * uiScale;
+
+        ctxGood.save();
+        ctxGood.translate(gHead.screenX, gHead.screenY);
+
+        // 即使在掩体后，高对比外框也清晰穿透
+        ctxGood.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctxGood.strokeStyle = '#38bdf8';
+        ctxGood.lineWidth = 1.5;
+        ctxGood.beginPath();
+        ctxGood.roundRect(-barW/2, -barH/2, barW, barH, 3);
+        ctxGood.fill();
+        ctxGood.stroke();
+
+        // 渐变血条
+        ctxGood.fillStyle = '#10b981';
+        ctxGood.fillRect(-barW/2 + 2, -barH/2 + 2, (barW - 4) * 0.72, barH - 4);
+
+        // 怪物名称与等级
+        ctxGood.fillStyle = '#ffffff';
+        ctxGood.font = `bold ${Math.round(10 * uiScale)}px sans-serif`;
+        ctxGood.fillText('Lv.18 狂暴骨弓', -barW/2, -barH/2 - 4);
+
+        // 距离衰减提示
+        ctxGood.fillStyle = '#38bdf8';
+        ctxGood.font = '9px monospace';
+        ctxGood.fillText('✓ Billboard 0°视角差 · 穿透保真', -barW/2 - 10, barH/2 + 13);
+
+        ctxGood.restore();
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>

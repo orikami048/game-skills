@@ -167,6 +167,23 @@
 
 ---
 
+### 10. `threejs-game-ui-designer`：Three.js 3D 游戏空间 UI、Billboard 视线锁定与屏幕外雷达（静态架构参考）
+
+![Three.js 3D 游戏空间 UI 架构图](assets/threejs_ui_comparison.png)
+
+* **❌ 未使用 Skill（简单挂载 / 侧视扁线 / 深度穿模）**：
+  * **侧视视角失真**：UI 仅为一个固定 3D 平面，侧面看时直接失真压缩成一条看不见的薄线；
+  * **墙体深度粗暴截断**：未设置 `depthTest=false` 或独立渲染层级，掩体高墙将血条拦腰切断；
+  * **屏幕外镜像反转**：敌人跑到背后时，UI 镜像倒飞在屏幕前乱跳；同屏 100 个 DOM 节点引发重排卡顿。
+* **✅ 搭载 `threejs-game-ui-designer`（工业级规范）**：
+  * **四元数空间公告板 (Spherical Billboard)**：每帧实时同步 `quaternion.copy(camera.quaternion)`，无论视角如何旋转，血条始终 100% 正对玩家屏幕；
+  * **深度穿透覆盖 (Depth Buffer Override)**：开启深度覆写与高对比外发光，即使敌人躲在掩体背后，血条与轮廓依然清晰半透可辨；
+  * **视网膜边缘雷达钳位 (Off-screen Viewport Clamping)**：敌人移出视野或移到镜头背后时，自动进行视口边缘裁切并贴边显示**呼吸警示三角标与精准米数**！
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验 Three.js 3D 空间 UI 试验台](https://orikami048.github.io/game-skills/prototypes/threejs_ui_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/threejs_ui_showcase.html](http://localhost:8088/prototypes/threejs_ui_showcase.html))*
+
+---
+
 ## 🤖 适配与实测推荐模型矩阵 (Model Matrix)
 
 为确保 Skills 发挥最佳效果，针对不同开发环节推荐选用最匹配的模型：
@@ -175,6 +192,7 @@
 |---|---|---|
 | **代码实现与手感逻辑** | **Gemini 3.8 Flash (High)**<br>*(实操验证推荐)* | 响应迅速，逻辑严密。能准确理解 60FPS 游戏循环中的顿帧挂起、阻尼摩擦力数学公式与 0ms 像素位移。 |
 | **高复杂度底层系统与网络** | **Claude 3.7 Sonnet** / **Gemini 3.8 Pro** | 适合生成复杂的 Modifier 属性管线、Godot/Unity HLSL 像素着色器以及多人帧同步/预测回滚逻辑。 |
+| **3D 空间 UI 与公告板数学** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间四元数姿态同步、视口椭圆安全区钳位与背面点积翻转极度精确。 |
 | **像素资产出图 (Sprite/UI)** | **Imagen 3 (Fast / HQ)** / **Gemini 3.8 Flash ImageGen** | 对 `#FF00FF` 品红底与“无外发光、无抗锯齿”负面提示词执行力强，网格漂移率极低。 |
 | **程序化关卡与图论拓扑** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间二叉树切分紧凑，极擅长 A* 泛洪校验、锁钥 DAG 依赖与 Mulberry32 位运算。 |
 | **手柄导航与人机工效设计** | **Claude 3.7 Sonnet** / **Gemini 3.8 Flash** | 空间几何射线检测推导强，极度熟悉 Focus Trap 焦点栈防穿透与 Nielsen 人机工效学。 |
@@ -192,7 +210,8 @@ game-skills/
 │   ├── feel_comparison.png        # Game Feel 高能打击感命中实机图
 │   ├── ui_ux_comparison.png       # UI/UX 人机工效与手柄焦点架构图
 │   ├── pixel_assets_comparison.png# 像素资产真假对比与瓦片架构图
-│   └── level_comparison.png       # 程序化关卡与拓扑必达路径图
+│   ├── level_comparison.png       # 程序化关卡与拓扑必达路径图
+│   └── threejs_ui_comparison.png  # Three.js 3D 空间 UI 与 Billboard 架构图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
@@ -202,7 +221,8 @@ game-skills/
 │   ├── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
 │   ├── ui_ux_showcase.html        # UI/UX 人机工效与焦点陷阱试验台
 │   ├── pixel_assets_showcase.html # 像素点阵与无缝自动瓦片试验台
-│   └── level_showcase.html        # 程序化关卡与拓扑必达路径试验台
+│   ├── level_showcase.html        # 程序化关卡与拓扑必达路径试验台
+│   └── threejs_ui_showcase.html   # Three.js 3D 空间 UI 与边缘雷达试验台
 └── skills/                        # 核心技能正本
     ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
     │   ├── SKILL.md
@@ -228,9 +248,13 @@ game-skills/
     ├── pixel-art-game-assets/     # 像素游戏美术资产规范、真点阵与自动瓦片
     │   ├── SKILL.md
     │   └── comparison.png
-    └── procedural-level-design/   # 程序化关卡、BSP 二叉树与 A* 必达通关拓扑
+    ├── procedural-level-design/   # 程序化关卡、BSP 二叉树与 A* 必达通关拓扑
+    │   ├── SKILL.md
+    │   └── comparison.png
+    └── threejs-game-ui-designer/  # Three.js 3D 空间 UI、Billboard 与屏幕边缘雷达
         ├── SKILL.md
         └── comparison.png
+```
 ```
 
 ---
