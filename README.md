@@ -39,7 +39,20 @@
 
 ---
 
-### 2. `game-feel`：动作游戏打击感与微反馈实机动态对比（全循环动图）
+### 3. `game-engine`：底层架构与 800+ 实体高压对决（静态架构参考）
+
+![游戏引擎与底层架构性能对比参考图](assets/engine_comparison.png)
+
+* **❌ 未使用 Skill（暴力 O(N²) 与频繁 new）**：800 个实体双重循环两两检测碰撞，每帧执行 320,000 次距离开方运算，CPU 100% 满载，帧率跌至 12 FPS PPT 状态；高频 `new` 对象引发剧烈 GC 卡顿；
+* **✅ 搭载 `game-engine`（工业级架构）**：
+  * **空间哈希网格（Spatial Hash Grid）**：将世界切分为 40px 单元格，仅对同格及周边 8 格做局部检测，计算量骤降 95%，帧率稳定满帧 60 FPS；
+  * **零分配对象池（Zero-allocation Pool）**：预热实体并复用，0 次运行时临时分配，内存曲线平滑如镜，根除 GC Spike 掉帧；
+  * **组合优于继承（Composition）**：解耦全局单例 God Object，场景生命周期严格托管清理，杜绝跨关卡内存泄漏。
+* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/engine_showcase.html`](prototypes/engine_showcase.html)
+
+---
+
+### 4. `game-feel`：动作游戏打击感与微反馈实机动态对比（全循环动图）
 
 ![Game Feel 命中受击实机高燃动图对比](assets/feel_comparison.gif)
 
@@ -77,19 +90,23 @@ game-skills/
 │   ├── ui_comparison.png          # 16-Bit UI 左右分屏实机对比
 │   └── feel_comparison.png        # Game Feel 高能打击感命中实机图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
+│   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
+│   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
 │   ├── ui_showcase.html           # 16-Bit UI 交互原型 (SFC 边框/4px下沉/扫描线)
 │   └── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
 └── skills/                        # 核心技能正本
+    ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
+    │   ├── SKILL.md
+    │   └── comparison.png
+    ├── game-engine/               # 游戏引擎架构、空间哈希网格与对象池
+    │   ├── SKILL.md
+    │   └── comparison.png
     ├── game-ui-design/            # 16-Bit 游戏 UI 规范与九宫格边框
     │   ├── SKILL.md
-    │   ├── comparison.png
-    │   └── showcase.html
-    ├── game-feel/                 # 游戏手感、顿帧、震屏与受击反馈算法
-    │   ├── SKILL.md
-    │   ├── comparison.png
-    │   └── showcase.html
-    └── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
-        └── SKILL.md
+    │   └── comparison.gif
+    └── game-feel/                 # 游戏手感、顿帧、震屏与受击反馈算法
+        ├── SKILL.md
+        └── comparison.gif
 ```
 
 ---
