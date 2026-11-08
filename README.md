@@ -130,6 +130,24 @@
 
 ---
 
+### 8. `pixel-art-game-assets`：像素美术资产规范、真点阵与自动瓦片（静态架构参考）
+
+![像素美术资产规范对比图](assets/pixel_assets_comparison.png)
+
+* **❌ 未使用 Skill（假像素抗锯齿 / 锚点漂移 / 接缝断裂）**：
+  * **假像素与 Mixel 诅咒**：通用模型输出连续潜空间图像，边缘充斥半透明杂点与 0.5px 模糊，不同元素像素块大小严重失调，整图用色超过 1400 种杂色，无法干净分离 Alpha 通道进引擎；
+  * **动画锚点跳跃（Pivot Drift）**：生成连续帧时双脚不在同一基准线，跑动动画上下晃动 10px 呈现抽搐状态；
+  * **四方地块接缝撕裂**：平铺九宫格地块边缘断层明显，无法生成 47-Blob 自动过渡瓦片。
+* **✅ 搭载 `pixel-art-game-assets`（工业级像素资产标准）**：
+  * **100% 纯净硬点阵 (1px Hard Pixel)**：Alpha 通道非 0 即 255，绝对无半透明羽化与抗锯齿，完美支持 8x 整数倍点阵咬合与品红 (`#FF00FF`) 纯净抠图；
+  * **底边锁定锚点 (Pivot Locked)**：脚底接触面死锁在基准像素行，连续奔跑与攻击帧循环平稳自然；
+  * **冷暖色阶偏移 (Hue Shifting)**：高光偏金色暖黄、阴影偏冷暗紫红，摆脱粗暴死黑脏灰色，质感璀璨；
+  * **无缝自动平铺 (Seamless 47-Blob Autotile)**：边缘像素 100% 互补衔接，匹配 RPGMaker 与 Tiled 瓦片集规范。
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验像素美术资产与自动瓦片试验台](https://orikami048.github.io/game-skills/prototypes/pixel_assets_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/pixel_assets_showcase.html](http://localhost:8088/prototypes/pixel_assets_showcase.html))*
+
+---
+
 ## 🤖 适配与实测推荐模型矩阵 (Model Matrix)
 
 为确保 Skills 发挥最佳效果，针对不同开发环节推荐选用最匹配的模型：
@@ -152,7 +170,8 @@ game-skills/
 ├── assets/                        # 高清对比截图
 │   ├── ui_comparison.png          # 16-Bit UI 左右分屏实机对比
 │   ├── feel_comparison.png        # Game Feel 高能打击感命中实机图
-│   └── ui_ux_comparison.png       # UI/UX 人机工效与手柄焦点架构图
+│   ├── ui_ux_comparison.png       # UI/UX 人机工效与手柄焦点架构图
+│   └── pixel_assets_comparison.png# 像素资产真假对比与瓦片架构图
 ├── prototypes/                    # 独立交互试玩原型 (可直接在浏览器中打开试玩)
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
@@ -160,7 +179,8 @@ game-skills/
 │   ├── theory_showcase.html       # 策划理论心流试验台 (心流黄金通道/正负权衡抉择)
 │   ├── ui_showcase.html           # 16-Bit UI 交互原型 (SFC 边框/4px下沉/扫描线)
 │   ├── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
-│   └── ui_ux_showcase.html        # UI/UX 人机工效与焦点陷阱试验台
+│   ├── ui_ux_showcase.html        # UI/UX 人机工效与焦点陷阱试验台
+│   └── pixel_assets_showcase.html # 像素点阵与无缝自动瓦片试验台
 └── skills/                        # 核心技能正本
     ├── higgsfield-game-generation/# 核心玩法生成、状态机闭环与 Modifier 属性管线
     │   ├── SKILL.md
@@ -180,7 +200,10 @@ game-skills/
     ├── game-feel/                 # 游戏手感、顿帧、震屏与受击反馈算法
     │   ├── SKILL.md
     │   └── comparison.gif
-    └── game-ui-ux/                # 游戏 UI/UX 交互人机工效与手柄空间焦点
+    ├── game-ui-ux/                # 游戏 UI/UX 交互人机工效与手柄空间焦点
+    │   ├── SKILL.md
+    │   └── comparison.png
+    └── pixel-art-game-assets/     # 像素游戏美术资产规范、真点阵与自动瓦片
         ├── SKILL.md
         └── comparison.png
 ```

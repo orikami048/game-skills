@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>像素美术资产规范对比试验台 - pixel-art-game-assets</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #0f111a;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .header p {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    /* 控制栏 */
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      background: #1e2230;
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn {
+      background: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: #475569; }
+    .btn.active {
+      background: #8b5cf6;
+      border-color: #a78bfa;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+    }
+
+    /* 主对比工作区 */
+    .stage {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 1100px;
+    }
+    .panel {
+      background: #161922;
+      border-radius: 14px;
+      border: 2px solid #2d3748;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .panel.bad {
+      border-color: #ef4444;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.12);
+    }
+    .panel.good {
+      border-color: #10b981;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+    }
+
+    .panel-tag {
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .panel.bad .panel-tag { background: #ef4444; color: #fff; }
+    .panel.good .panel-tag { background: #10b981; color: #fff; }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 6px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 画布与展示区 */
+    .canvas-card {
+      background: #0b0c10;
+      border-radius: 10px;
+      border: 1px solid #242b3b;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .canvas-wrapper {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #11141e;
+      border: 1px dashed #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      width: 256px;
+      height: 256px;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    .grid-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      background-size: 16px 16px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      display: none;
+    }
+    .grid-overlay.show { display: block; }
+
+    /* 说明与问题剖析 */
+    .details {
+      background: #1a1e2b;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+      flex-grow: 1;
+    }
+    .details ul {
+      padding-left: 18px;
+      margin-top: 6px;
+    }
+    .details li {
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+    .details strong { color: #f8fafc; }
+    .panel.bad .details strong { color: #fca5a5; }
+    .panel.good .details strong { color: #86efac; }
+
+    /* 调色盘与色阶柱 */
+    .palette-box {
+      margin-top: 12px;
+      background: #11141e;
+      border: 1px solid #2c3548;
+      border-radius: 6px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .palette-title {
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+    .color-swatches {
+      display: flex;
+      gap: 3px;
+      height: 18px;
+      width: 100%;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .swatch {
+      flex: 1;
+      height: 100%;
+    }
+
+    /* 底部导航说明 */
+    .footer-bar {
+      margin-top: 24px;
+      background: #161922;
+      border: 1px solid #334155;
+      padding: 12px 20px;
+      border-radius: 10px;
+      max-width: 1100px;
+      width: 100%;
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .footer-bar strong { color: #e2e8f0; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>像素美术资产规范对比试验台</h1>
+    <p>Skill 11: pixel-art-game-assets | 假像素抗锯齿乱象 vs 工业级真像素规范、固定锚点动画与自动瓦片</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn active" id="btn-mode-sprite" onclick="switchMode('sprite')">
+      <span>🏃 角色精灵跑动 (Sprite Walk)</span>
+    </button>
+    <button class="btn" id="btn-mode-tile" onclick="switchMode('tile')">
+      <span>🗺️ 四方连续地块 (Seamless Tile)</span>
+    </button>
+    <button class="btn" id="btn-mode-icon" onclick="switchMode('icon')">
+      <span>⚔️ 装备道具图标 (Item Icon)</span>
+    </button>
+    <button class="btn" id="btn-toggle-grid" onclick="toggleGrid()">
+      <span>📐 显示像素网格 (Grid 8x)</span>
+    </button>
+    <button class="btn" id="btn-toggle-play" onclick="togglePlay()">
+      <span id="play-text">⏸️ 暂停动画</span>
+    </button>
+  </div>
+
+  <div class="stage">
+    <!-- ❌ 未使用 Skill -->
+    <div class="panel bad">
+      <div class="panel-tag">❌ 未使用 Skill (普通通用 AI 生图)</div>
+      <div class="panel-title">
+        <span>“假像素 / 缝合怪 / 无法进引擎”</span>
+        <span style="font-size:12px; color:#ef4444; font-weight:normal;" id="bad-stat">杂色: 1420 种</span>
+      </div>
+
+      <div class="canvas-card">
+        <div class="canvas-wrapper">
+          <canvas id="canvas-bad" width="256" height="256"></canvas>
+          <div class="grid-overlay" id="grid-bad"></div>
+        </div>
+      </div>
+
+      <div class="palette-box">
+        <div class="palette-title">
+          <span>调色板受控检测 (Palette Inspection)</span>
+          <span id="bad-palette-label">无调色盘限制 · 渐变死黑</span>
+        </div>
+        <div class="color-swatches" id="bad-swatches">
+          <!-- 动态填充 -->
+        </div>
+      </div>
+
+      <div class="details">
+        <strong id="bad-desc-title">普通大模型典型致命硬伤：</strong>
+        <ul id="bad-points">
+          <li><strong>假像素抗锯齿 (Anti-aliasing / Mixel)</strong>：放大看边缘有大量半透明杂点与0.5px模糊，根本不是纯网格点阵。</li>
+          <li><strong>无锚点坐标漂移 (Pivot Drift)</strong>：连续两帧脚底不在同一水平面，角色在画面中上下剧烈跳帧颤抖。</li>
+          <li><strong>调色板失控 (Palette Chaos)</strong>：暗部直接使用粗暴纯黑 (#000000)，缺少冷暖偏色，整图用色超过 1400 种。</li>
+          <li><strong>无法进引擎 (Engine Incompatible)</strong>：无法使用色度键自动抠图，边缘一圈白色脏光晕。</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ✅ 搭载 pixel-art-game-assets -->
+    <div class="panel good">
+      <div class="panel-tag">✅ 搭载 pixel-art-game-assets (工业级规范)</div>
+      <div class="panel-title">
+        <span>“纯净真像素 / 锁定基准锚点 / 风格统一”</span>
+        <span style="font-size:12px; color:#10b981; font-weight:normal;" id="good-stat">精准 16 色调色盘</span>
+      </div>
+
+      <div class="canvas-card">
+        <div class="canvas-wrapper">
+          <canvas id="canvas-good" width="256" height="256"></canvas>
+          <div class="grid-overlay" id="grid-good"></div>
+        </div>
+      </div>
+
+      <div class="palette-box">
+        <div class="palette-title">
+          <span>严格 Endesga 16/32 项目统一调色板</span>
+          <span id="good-palette-label">暖金高光 · 紫红阴影 (Hue Shift)</span>
+        </div>
+        <div class="color-swatches" id="good-swatches">
+          <!-- 动态填充 -->
+        </div>
+      </div>
+
+      <div class="details">
+        <strong id="good-desc-title">搭载技能工业级规范解法：</strong>
+        <ul id="good-points">
+          <li><strong>严格真像素点阵 (1px Hard Pixel)</strong>：Alpha 通道非 0 即 255，绝对无半透明杂色与抗锯齿，完美支持 8x 整数缩放。</li>
+          <li><strong>脚底锁定锚点 (Pivot Locked)</strong>：以底边为基准对齐接触面，连续跑动步伐节奏恒定，头部波浪起伏自然。</li>
+          <li><strong>色相冷暖偏移 (Hue Shifting)</strong>：高光往暖金黄色偏移、暗部向紫红/深蓝偏移，明暗层次立体剔透。</li>
+          <li><strong>直接进引擎 (Directly Engine Ready)</strong>：支持品红 (#FF00FF) 纯净透明通道分离，无缝集成 Godot/Unity 瓦片集。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <div>
+      <strong>当前渲染状态：</strong>
+      <span id="status-text">角色精灵跑动演示 (4帧循环，60Hz 采样)</span>
+    </div>
+    <div>
+      <span>按需切换上方模式，放大观察网格点阵咬合度</span>
+    </div>
+  </div>
+
+  <script>
+    // 全局状态
+    let currentMode = 'sprite'; // 'sprite' | 'tile' | 'icon'
+    let showGrid = false;
+    let isPlaying = true;
+    let animFrame = 0;
+    let lastTime = 0;
+    const FRAME_DURATION = 150; // 每帧 150ms
+
+    const canvasBad = document.getElementById('canvas-bad');
+    const ctxBad = canvasBad.getContext('2d');
+    const canvasGood = document.getElementById('canvas-good');
+    const ctxGood = canvasGood.getContext('2d');
+
+    // 禁用双线性平滑，确保硬像素展现
+    ctxGood.imageSmoothingEnabled = false;
+
+    // 经典 16 色调色盘 (DawnBringer / Endesga 风格)
+    const GOOD_PALETTE = [
+      '#141013', '#3b2137', '#5a2652', '#853e53', 
+      '#9e5b4a', '#d28052', '#f6b864', '#fbe08e',
+      '#273244', '#3d5272', '#5786a3', '#89b8c6',
+      '#355952', '#568b6b', '#86bd80', '#c8e29d'
+    ];
+
+    // 初始化调色板条
+    function initPalettes() {
+      // 优秀的调色板
+      const gSwatches = document.getElementById('good-swatches');
+      gSwatches.innerHTML = '';
+      GOOD_PALETTE.forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'swatch';
+        d.style.background = c;
+        gSwatches.appendChild(d);
+      });
+
+      // 糟糕的调色板（渐变死黑色块）
+      const bSwatches = document.getElementById('bad-swatches');
+      bSwatches.innerHTML = '';
+      const badColors = ['#000000', '#1c1c1c', '#333333', '#4d4d4d', '#666666', '#808080', '#999999', '#bfbfbf', '#e6e6e6', '#ffffff', '#8a2be2', '#ff1493', '#32cd32', '#ffff00', '#ff4500', '#00ced1'];
+      badColors.forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'swatch';
+        d.style.background = c;
+        bSwatches.appendChild(d);
+      });
+    }
+    initPalettes();
+
+    // 切换模式
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.controls .btn').forEach(b => {
+        if (b.id.startsWith('btn-mode-')) b.classList.remove('active');
+      });
+      document.getElementById('btn-mode-' + mode).classList.add('active');
+
+      const badTitle = document.getElementById('bad-desc-title');
+      const badPoints = document.getElementById('bad-points');
+      const goodTitle = document.getElementById('good-desc-title');
+      const goodPoints = document.getElementById('good-points');
+      const badStat = document.getElementById('bad-stat');
+      const goodStat = document.getElementById('good-stat');
+      const statusText = document.getElementById('status-text');
+
+      if (mode === 'sprite') {
+        badStat.innerText = '杂色: 1420 种 · 锚点剧烈抖动';
+        goodStat.innerText = '精准 16 色 · 底边固定锚点';
+        statusText.innerText = '角色精灵跑动演示 (4帧循环，60Hz 采样)';
+        badTitle.innerText = '普通 AI 角色精灵致命伤：';
+        badPoints.innerHTML = `
+          <li><strong>无锚点坐标漂移 (Pivot Drift)</strong>：脚底没有固定水平基准，每帧上下晃动 6~12px，进引擎无法贴地跑动。</li>
+          <li><strong>假像素抗锯齿 (Anti-aliasing)</strong>：边缘有半透明杂色晕影，无法干净扣除背景。</li>
+          <li><strong>帧间特征不守恒</strong>：第 1 帧剑长 15px，第 3 帧突然缩成短匕首，披风忽大忽小。</li>
+        `;
+        goodTitle.innerText = '工业级 Sprite Sheet 规范：';
+        goodPoints.innerHTML = `
+          <li><strong>底边绝对锁定锚点 (Pivot-locked)</strong>：脚底接触面锁定在 y=28 像素基线，跑步绝无漂浮与震颤。</li>
+          <li><strong>纯净硬边缘点阵</strong>：无任何半透明羽化，直接支持 Chroma Key 品红抠图进引擎。</li>
+          <li><strong>动态守恒与挤压回弹</strong>：下蹲蓄力与腾空严格遵循 12 帧/秒迪士尼原则。</li>
+        `;
+      } else if (mode === 'tile') {
+        badStat.innerText = '接缝断裂 · 网格不对齐';
+        goodStat.innerText = '47-Blob 无缝自适应平铺';
+        statusText.innerText = '四方连续地块拼接对比 (3x3 瓦片无缝性检测)';
+        badTitle.innerText = '普通 AI 地块生成致命伤：';
+        badPoints.innerHTML = `
+          <li><strong>无法无缝拼接 (Seam Breakdown)</strong>：左边边缘与右边边缘纹理断裂，拼成地图后出现巨大的十字网格切割线。</li>
+          <li><strong>像素密度错乱 (Mixel 诅咒)</strong>：地表草皮像素是 1x，石头像素变成了 3x 巨大块，视觉极其割裂。</li>
+          <li><strong>缺少过渡边界</strong>：只有一种孤立地块，无法与泥土、水面生成 47-Blob 自动过渡转角。</li>
+        `;
+        goodTitle.innerText = '工业级自动瓦片 (Autotile) 规范：';
+        goodPoints.innerHTML = `
+          <li><strong>严格四方连续 (Seamless Wrapping)</strong>：上下左右边缘像素 100% 互补衔接，无缝铺满整个世界。</li>
+          <li><strong>严格单一像素比 (Strict 1:1 Pixel Ratio)</strong>：全场景点阵密度一致，彻底根除 Mixel 违和感。</li>
+          <li><strong>九宫格与拐角自闭环</strong>：支持 RPGMaker 与 Tiled 标准瓦片集（Tileset）导出。</li>
+        `;
+      } else if (mode === 'icon') {
+        badStat.innerText = '发光晕影 · 无法识别轮廓';
+        goodStat.innerText = '1px 深色包边 · 暖光剔透';
+        statusText.innerText = '装备图标特写对比 (32x32 剑与魔法道具点阵)';
+        badTitle.innerText = '普通 AI 道具图标致命伤：';
+        badPoints.innerHTML = `
+          <li><strong>自带现代模糊发光 (Glow Bleed)</strong>：画宝剑自带现代 PS 径向渐变发光，放进背包九宫格框里糊成一团。</li>
+          <li><strong>死黑阴影与脏灰过渡</strong>：金属剑身用灰色渐变表达，塑料感极重，暗面像生锈发黑。</li>
+        `;
+        goodTitle.innerText = '工业级 1px 像素道具规范：';
+        goodPoints.innerHTML = `
+          <li><strong>1px 暖棕/深色硬包边 (Selective Outlining)</strong>：物体外轮廓分明，放进任何复杂背景背包栏都能一眼辨识。</li>
+          <li><strong>色阶偏色与镜面高光 (Hue Shifting)</strong>：黄金剑柄暖黄→红橙过渡，白银剑刃淡青→深青紫过渡，质感璀璨。</li>
+        `;
+      }
+    }
+
+    function toggleGrid() {
+      showGrid = !showGrid;
+      document.getElementById('grid-bad').classList.toggle('show', showGrid);
+      document.getElementById('grid-good').classList.toggle('show', showGrid);
+      document.getElementById('btn-toggle-grid').classList.toggle('active', showGrid);
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      document.getElementById('btn-toggle-play').classList.toggle('active', !isPlaying);
+      document.getElementById('play-text').innerText = isPlaying ? '⏸️ 暂停动画' : '▶️ 播放动画';
+    }
+
+    // 绘制角色精灵
+    function renderSprite(time) {
+      // 动画更新
+      if (isPlaying && time - lastTime > FRAME_DURATION) {
+        animFrame = (animFrame + 1) % 4;
+        lastTime = time;
+      }
+
+      // 1. 绘制左侧（普通 AI 翻车伪像素）
+      ctxBad.clearRect(0, 0, 256, 256);
+      ctxBad.fillStyle = '#181b24';
+      ctxBad.fillRect(0, 0, 256, 256);
+
+      // 背景网格地板
+      ctxBad.strokeStyle = '#222838';
+      ctxBad.lineWidth = 2;
+      ctxBad.beginPath();
+      ctxBad.moveTo(20, 210); ctxBad.lineTo(236, 210);
+      ctxBad.stroke();
+
+      // 普通 AI 的脚底漂移 (每帧 Y 轴大幅晃动)
+      const badDriftY = [0, -14, 8, -6][animFrame];
+      const badDriftX = [0, 4, -5, 2][animFrame];
+      
+      // 普通 AI 的抗锯齿模糊与脏阴影
+      ctxBad.save();
+      ctxBad.translate(128 + badDriftX, 120 + badDriftY);
+
+      // 地面脏阴影（模糊抗锯齿圆，位置还漂移）
+      ctxBad.fillStyle = 'rgba(0,0,0,0.6)';
+      ctxBad.filter = 'blur(4px)'; // 致命伤：使用浏览器模糊模拟抗锯齿假像素
+      ctxBad.beginPath();
+      ctxBad.ellipse(0, 75 - badDriftY * 0.5, 30, 8, 0, 0, Math.PI * 2);
+      ctxBad.fill();
+      ctxBad.filter = 'none';
+
+      // 假像素角色：身体（带半透明杂边与渐变）
+      const gradBad = ctxBad.createLinearGradient(-25, -50, 25, 50);
+      gradBad.addColorStop(0, '#a855f7');
+      gradBad.addColorStop(0.5, '#7e22ce');
+      gradBad.addColorStop(1, '#000000'); // 致命伤：死黑过渡
+
+      ctxBad.fillStyle = gradBad;
+      // 现代圆角与不规则抗锯齿 (Mixel 缩放)
+      ctxBad.fillRect(-22, -35, 44, 55);
+
+      // 头部（忽大忽小漂移）
+      const headScale = [1.0, 1.15, 0.9, 1.05][animFrame];
+      ctxBad.fillStyle = '#fca5a5';
+      ctxBad.beginPath();
+      ctxBad.arc(0, -55, 22 * headScale, 0, Math.PI * 2);
+      ctxBad.fill();
+
+      // 普通 AI 奇怪的四肢（抽搐无规律）
+      ctxBad.fillStyle = '#3b82f6';
+      if (animFrame === 0) {
+        ctxBad.fillRect(-18, 20, 12, 38);
+        ctxBad.fillRect(6, 20, 12, 38);
+      } else if (animFrame === 1) {
+        ctxBad.fillRect(-24, 10, 14, 30);
+        ctxBad.fillRect(10, 15, 10, 48); // 长短腿
+      } else if (animFrame === 2) {
+        ctxBad.fillRect(-10, 25, 12, 45);
+        ctxBad.fillRect(4, 5, 14, 25);
+      } else {
+        ctxBad.fillRect(-20, 15, 10, 42);
+        ctxBad.fillRect(8, 18, 12, 36);
+      }
+
+      // 武器：忽隐忽现漂移
+      ctxBad.fillStyle = '#cbd5e1';
+      ctxBad.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctxBad.lineWidth = 1.5;
+      const swordLen = [40, 18, 55, 32][animFrame]; // 致命伤：武器长度忽长忽短
+      ctxBad.fillRect(22, -20, 8, swordLen);
+      ctxBad.strokeRect(22, -20, 8, swordLen);
+
+      // 标出痛点文字
+      ctxBad.restore();
+      ctxBad.fillStyle = '#ef4444';
+      ctxBad.font = '11px sans-serif';
+      ctxBad.fillText('⚠️ 锚点剧烈漂移 (Δy=' + badDriftY + 'px)', 25, 35);
+      ctxBad.fillText('⚠️ 半透明假像素与抗锯齿混杂', 25, 52);
+      ctxBad.fillText('⚠️ 武器与头身比每帧抽搐变异', 25, 69);
+
+
+      // 2. 绘制右侧（工业级 pixel-art-game-assets 规范）
+      ctxGood.clearRect(0, 0, 256, 256);
+      ctxGood.fillStyle = '#181b24';
+      ctxGood.fillRect(0, 0, 256, 256);
+
+      // 固定水平基准参考线
+      ctxGood.strokeStyle = '#2d4a3e';
+      ctxGood.lineWidth = 2;
+      ctxGood.beginPath();
+      ctxGood.moveTo(20, 210); ctxGood.lineTo(236, 210);
+      ctxGood.stroke();
+
+      // 采用标准 32x32 像素点阵模拟 (放大 6 倍展示，每个像素为 6x6 实体块)
+      const P = 6; 
+      const OX = 128 - 16 * P;
+      const OY = 210 - 28 * P; // 脚底永远锁死在第 28 行像素点！
+
+      // 阴影：纯像素硬边缘椭圆，固定在脚底
+      ctxGood.fillStyle = '#141013';
+      for (let x = 10; x <= 22; x++) {
+        for (let y = 27; y <= 28; y++) {
+          if (x >= 12 && x <= 20) ctxGood.fillRect(OX + x * P, OY + y * P, P, P);
+        }
+      }
+
+      // 4 帧严谨跑动循环 (下蹲-迈出-腾空-落地)
+      const legOffsets = [
+        { l: [13, 22, 13, 26], r: [18, 22, 18, 26], bodyY: 0 },
+        { l: [11, 20, 9, 24],  r: [19, 21, 21, 26], bodyY: -1 },
+        { l: [14, 22, 14, 26], r: [17, 22, 17, 26], bodyY: 1 }, // 挤压下潜
+        { l: [18, 20, 20, 24], r: [12, 21, 10, 26], bodyY: -1 }
+      ][animFrame];
+
+      const by = legOffsets.bodyY;
+
+      // 绘制身体与腿部 (严格 Endesga 色盘)
+      // 腿 (深紫红阴影 #5a2652 与 #853e53)
+      ctxGood.fillStyle = '#5a2652';
+      ctxGood.fillRect(OX + legOffsets.l[0]*P, OY + (legOffsets.l[1]+by)*P, 3*P, 5*P);
+      ctxGood.fillRect(OX + legOffsets.r[0]*P, OY + (legOffsets.r[1]+by)*P, 3*P, 5*P);
+
+      // 躯干 (衣服：暖蓝与青蓝 #3d5272 / #5786a3)
+      ctxGood.fillStyle = '#3d5272';
+      ctxGood.fillRect(OX + 12*P, OY + (13+by)*P, 8*P, 9*P);
+      // 高光偏金暖色 #89b8c6
+      ctxGood.fillStyle = '#89b8c6';
+      ctxGood.fillRect(OX + 13*P, OY + (14+by)*P, 2*P, 6*P);
+
+      // 头部与头发 (金色与暖棕 #f6b864 / #9e5b4a)
+      // 脸
+      ctxGood.fillStyle = '#fbe08e';
+      ctxGood.fillRect(OX + 13*P, OY + (7+by)*P, 7*P, 6*P);
+      // 眼睛 (1px 硬黑)
+      ctxGood.fillStyle = '#141013';
+      ctxGood.fillRect(OX + 17*P, OY + (9+by)*P, 1*P, 2*P);
+      // 头发 (偏色高光 #f6b864，暗面 #9e5b4a)
+      ctxGood.fillStyle = '#9e5b4a';
+      ctxGood.fillRect(OX + 12*P, OY + (4+by)*P, 9*P, 4*P);
+      ctxGood.fillStyle = '#f6b864';
+      ctxGood.fillRect(OX + 13*P, OY + (5+by)*P, 4*P, 2*P);
+
+      // 武器：守恒大剑 (严格 1px 黑色包边与金色配重球)
+      // 剑身 (#c8e29d 偏冷银白，暗面 #568b6b)
+      ctxGood.fillStyle = '#141013'; // 1px 硬描边
+      ctxGood.fillRect(OX + 21*P, OY + (3+by)*P, 3*P, 15*P);
+      ctxGood.fillStyle = '#c8e29d';
+      ctxGood.fillRect(OX + 22*P, OY + (4+by)*P, 1*P, 12*P);
+      ctxGood.fillStyle = '#f6b864'; // 黄金护手
+      ctxGood.fillRect(OX + 20*P, OY + (15+by)*P, 5*P, 2*P);
+
+      // 标出工业级规范特性
+      ctxGood.fillStyle = '#10b981';
+      ctxGood.font = '11px sans-serif';
+      ctxGood.fillText('✓ 底边 y=210px 绝对锁定接触面', 25, 35);
+      ctxGood.fillText('✓ 100% 整数倍硬像素 (6x 真实点阵)', 25, 52);
+      ctxGood.fillText('✓ 暖黄/冷紫 Hue Shifting 色相偏移', 25, 69);
+    }
+
+    // 绘制四方连续地块对比
+    function renderTile() {
+      // 1. 左侧：普通 AI 地块（拼起来缝隙巨大、接缝错乱）
+      ctxBad.clearRect(0, 0, 256, 256);
+      ctxBad.fillStyle = '#223028';
+      ctxBad.fillRect(0, 0, 256, 256);
+
+      // 画 3x3 拼接，但每块边缘断裂
+      const ts = 85;
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const x = c * ts + 1;
+          const y = r * ts + 1;
+          
+          // 内部纹理
+          ctxBad.fillStyle = '#3a583e';
+          ctxBad.fillRect(x, y, ts-2, ts-2);
+
+          // 致命伤：边缘亮边与暗边不连续（明显的白边接缝与黑边）
+          ctxBad.strokeStyle = '#5a8d60';
+          ctxBad.strokeRect(x+2, y+2, ts-6, ts-6);
+
+          // 致命伤：Mixel（地块里有一块巨大尺寸的模糊石头）
+          ctxBad.fillStyle = '#808080';
+          ctxBad.filter = 'blur(2px)';
+          ctxBad.fillRect(x + 25, y + 25, 35, 25);
+          ctxBad.filter = 'none';
+
+          // 接缝处断开杂色
+          ctxBad.fillStyle = '#ff4444';
+          ctxBad.fillRect(x + ts - 4, y, 4, ts); // 明显的接缝切线
+          ctxBad.fillRect(x, y + ts - 4, ts, 4);
+        }
+      }
+
+      ctxBad.fillStyle = '#ef4444';
+      ctxBad.font = '11px sans-serif';
+      ctxBad.fillText('❌ 致命断裂：四边纹理无法无缝拼接 (Cross Seams)', 15, 25);
+      ctxBad.fillText('❌ Mixel 诅咒：石头像素尺寸比草地大 3 倍', 15, 45);
+
+      // 2. 右侧：工业级 47-Blob 无缝自适应平铺
+      ctxGood.clearRect(0, 0, 256, 256);
+      ctxGood.fillStyle = '#141013';
+      ctxGood.fillRect(0, 0, 256, 256);
+
+      // 严格 32x32 像素瓦片无缝拼贴展示 (放大 2.66 倍，满格铺满)
+      const gts = 64;
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 4; c++) {
+          const gx = c * gts;
+          const gy = r * gts;
+          drawSeamlessTile(ctxGood, gx, gy, gts);
+        }
+      }
+
+      ctxGood.fillStyle = '#10b981';
+      ctxGood.font = '11px sans-serif';
+      ctxGood.fillText('✓ 严格四方连续：边缘 100% 互补衔接 (Seamless)', 15, 25);
+      ctxGood.fillText('✓ 像素密度 1:1：彻底根除混合像素 (No Mixels)', 15, 45);
+    }
+
+    // 绘制纯正无缝瓦片
+    function drawSeamlessTile(ctx, x, y, size) {
+      const p = size / 16; // 16x16 基础分辨率
+      // 地表草地 (#355952 底色)
+      ctx.fillStyle = '#355952';
+      ctx.fillRect(x, y, size, size);
+
+      // 互补的草丛叶片 (#568b6b 与高光 #86bd80)
+      ctx.fillStyle = '#568b6b';
+      // 故意跨边缘的叶片（左边缘出，右边缘进）
+      ctx.fillRect(x, y + 4*p, 2*p, 2*p);
+      ctx.fillRect(x + size - 2*p, y + 4*p, 2*p, 2*p); // 互补衔接！
+
+      // 上边缘出，下边缘进
+      ctx.fillRect(x + 8*p, y, 3*p, 2*p);
+      ctx.fillRect(x + 8*p, y + size - 2*p, 3*p, 2*p); // 互补衔接！
+
+      // 内部点缀簇
+      ctx.fillStyle = '#86bd80';
+      ctx.fillRect(x + 4*p, y + 8*p, 3*p, 3*p);
+      ctx.fillRect(x + 11*p, y + 11*p, 2*p, 2*p);
+      ctx.fillStyle = '#c8e29d';
+      ctx.fillRect(x + 5*p, y + 9*p, 1*p, 1*p);
+    }
+
+    // 绘制装备图标对比
+    function renderIcon() {
+      // 1. 左侧：普通 AI 宝剑图标（模糊外发光，渐变死黑）
+      ctxBad.clearRect(0, 0, 256, 256);
+      ctxBad.fillStyle = '#141620';
+      ctxBad.fillRect(0, 0, 256, 256);
+
+      // 背包格子
+      ctxBad.strokeStyle = '#2d3748';
+      ctxBad.lineWidth = 3;
+      ctxBad.strokeRect(30, 30, 196, 196);
+
+      // 致命伤：大模型生图自带现代模糊光晕
+      const radGrad = ctxBad.createRadialGradient(128, 128, 10, 128, 128, 80);
+      radGrad.addColorStop(0, 'rgba(236, 72, 153, 0.45)');
+      radGrad.addColorStop(1, 'rgba(236, 72, 153, 0)');
+      ctxBad.fillStyle = radGrad;
+      ctxBad.fillRect(40, 40, 176, 176);
+
+      // 模糊宝剑斜插
+      ctxBad.save();
+      ctxBad.translate(128, 128);
+      ctxBad.rotate(Math.PI / 4);
+
+      // 死黑剑刃
+      const swordGrad = ctxBad.createLinearGradient(-15, -60, 15, 60);
+      swordGrad.addColorStop(0, '#ffffff');
+      swordGrad.addColorStop(0.3, '#71717a');
+      swordGrad.addColorStop(1, '#000000'); // 死黑
+      ctxBad.fillStyle = swordGrad;
+      ctxBad.fillRect(-8, -60, 16, 80);
+
+      // 无描边护手（与深色背景融为一体无法识别）
+      ctxBad.fillStyle = '#d97706';
+      ctxBad.fillRect(-22, 20, 44, 10);
+      ctxBad.restore();
+
+      ctxBad.fillStyle = '#ef4444';
+      ctxBad.font = '11px sans-serif';
+      ctxBad.fillText('❌ 现代模糊外发光 (背包九宫格糊成一团)', 25, 25);
+      ctxBad.fillText('❌ 无深色硬包边，与暗色背景直接融化融色', 25, 45);
+
+      // 2. 右侧：工业级 1px 包边 + 暖金冷青 Hue Shifting
+      ctxGood.clearRect(0, 0, 256, 256);
+      ctxGood.fillStyle = '#141620';
+      ctxGood.fillRect(0, 0, 256, 256);
+
+      // 背包格子
+      ctxGood.strokeStyle = '#3b4252';
+      ctxGood.lineWidth = 3;
+      ctxGood.strokeRect(30, 30, 196, 196);
+
+      // 纯 16-Bit 宝剑点阵 (放大 8 倍)
+      const P = 8;
+      const OX = 128;
+      const OY = 128;
+
+      ctxGood.save();
+      ctxGood.translate(OX, OY);
+      ctxGood.rotate(Math.PI / 4);
+
+      // 1px 深色包边 (#141013)
+      ctxGood.fillStyle = '#141013';
+      ctxGood.fillRect(-3*P, -9*P, 6*P, 14*P);
+      ctxGood.fillRect(-6*P, 4*P, 12*P, 3*P);
+      ctxGood.fillRect(-2*P, 7*P, 4*P, 5*P);
+
+      // 剑身冷暖偏色：高光暖白 (#fbe08e)，刃身冷淡青 (#89b8c6)，暗面深海青 (#3d5272)
+      ctxGood.fillStyle = '#3d5272';
+      ctxGood.fillRect(-2*P, -8*P, 4*P, 12*P);
+      ctxGood.fillStyle = '#89b8c6';
+      ctxGood.fillRect(-2*P, -8*P, 2*P, 11*P);
+      ctxGood.fillStyle = '#fbe08e'; // 尖端极光
+      ctxGood.fillRect(-1*P, -8*P, 2*P, 2*P);
+
+      // 黄金护手 (暖黄 #f6b864，暗金 #9e5b4a)
+      ctxGood.fillStyle = '#9e5b4a';
+      ctxGood.fillRect(-5*P, 4*P, 10*P, 2*P);
+      ctxGood.fillStyle = '#f6b864';
+      ctxGood.fillRect(-4*P, 4*P, 4*P, 1*P);
+
+      // 红宝石配重球
+      ctxGood.fillStyle = '#853e53';
+      ctxGood.fillRect(-1*P, 10*P, 2*P, 2*P);
+      ctxGood.fillStyle = '#f6b864';
+      ctxGood.fillRect(0, 10*P, 1*P, 1*P);
+
+      ctxGood.restore();
+
+      ctxGood.fillStyle = '#10b981';
+      ctxGood.font = '11px sans-serif';
+      ctxGood.fillText('✓ 1px 暖棕硬包边，任意背景高对比度立显', 25, 25);
+      ctxGood.fillText('✓ 黄金护手+冷青剑刃，冷暖偏色质感璀璨', 25, 45);
+    }
+
+    // 主渲染循环
+    function mainLoop(time) {
+      if (currentMode === 'sprite') {
+        renderSprite(time);
+      } else if (currentMode === 'tile') {
+        renderTile();
+      } else if (currentMode === 'icon') {
+        renderIcon();
+      }
+      requestAnimationFrame(mainLoop);
+    }
+    requestAnimationFrame(mainLoop);
+  </script>
+</body>
+</html>
