@@ -12,6 +12,17 @@ description: 游戏核心玩法与闭环逻辑架构系统。专注于将抽象�
 
 ---
 
+## 📸 实机对比与效果展示 (Visual Comparisons)
+
+![肉鸽核心循环实机动图对比](comparison.gif)
+
+> **实操对比差异：**
+> - **前半段（未使用 Skill - 普通 AI 典型方案）**：触发升级弹窗时虽然 `isPaused = true`，但后台定时器与物体位移未阻断，发生致命的**时序穿透 Bug**，玩家在弹窗选技能时被怪物围攻打死；词条无去重与前置校验，直接刷出未解锁的超武；数值硬编码叠加不可撤销。
+> - **后半段（搭载 higgsfield-game-generation）**：严格采用 **TimeScale = 0.0 时空绝对冻结**，所有怪物与投射物安全挂起；数据驱动加权抽卡引擎动态过滤前置条件，三选一绝对不重复；选定后通过 **Modifier 属性管线（Base -> Flat -> Additive -> Multiplicative）** 规范重算。
+> - 本地可双击运行 [`showcase.html`](showcase.html) 亲自在试验台中按键体验。
+
+---
+
 ## 🤖 适配与实测推荐模型 (Model Recommendations)
 
 | 任务类型 | 推荐使用模型 | 实测表现与推荐原因 |

@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>核心玩法生成与架构对比试验台 (higgsfield-game-generation)</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 font-sans antialiased selection:bg-amber-500 selection:text-black">
+
+  <div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- 顶部状态栏与核心控制 -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-4 rounded-xl backdrop-blur">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 text-xs font-bold rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Skill 01 实机架构评测</span>
+          <h1 class="text-xl font-bold tracking-tight text-white">higgsfield-game-generation：肉鸽玩法核心循环对比</h1>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">测试场景：击杀刷怪 -&gt; 拾取经验满槽 -&gt; 升级暂停冻结 -&gt; 三选一词条池抽样 -&gt; 属性管线重算</p>
+      </div>
+
+      <!-- 快速模式切换 -->
+      <div class="flex items-center bg-slate-950 p-1.5 rounded-lg border border-slate-800 gap-2">
+        <button id="btnVanilla" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition">
+          ❌ 未使用 Skill (普通 AI 典型方案)
+        </button>
+        <button id="btnPro" class="px-4 py-1.5 text-xs font-bold rounded-md bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition">
+          ✅ 搭载该 Skill (工业级架构)
+        </button>
+      </div>
+    </div>
+
+    <!-- 核心战斗主视窗与弹窗交互区域 -->
+    <div class="relative bg-slate-900 border-2 border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+      
+      <!-- 模式指示条 -->
+      <div class="p-3 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2">
+          <span id="modeBadge" class="px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+            🔥 当前模式：搭载 higgsfield-game-generation (专业解耦架构)
+          </span>
+          <span class="text-slate-400 hidden sm:inline">| 状态：<span id="timeStateText" class="text-emerald-400 font-mono font-bold">战斗进行中 (TimeScale: 1.0)</span></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnForceExp" class="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 shadow">
+            ⚡ 一键拾取满经验 (触发升级)
+          </button>
+        </div>
+      </div>
+
+      <!-- 战场主画布与 UI 浮层 -->
+      <div class="relative flex justify-center bg-[#070b14] p-3 cursor-default">
+        <canvas id="gameCanvas" width="760" height="360" class="w-full max-w-[760px] h-auto border border-slate-800/80 rounded-lg"></canvas>
+
+        <!-- 升级弹窗蒙层 (三选一抽卡) -->
+        <div id="upgradeModal" class="hidden absolute inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-40">
+          <div class="w-full max-w-lg bg-slate-900 border-2 border-amber-500/60 rounded-xl p-5 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div>
+                <span class="text-xs font-mono text-amber-400 font-bold uppercase tracking-wider">&gt; LEVEL UP GRANTED</span>
+                <h3 class="text-base font-bold text-white">选择一项突破强化 (三选一)</h3>
+              </div>
+              <span id="pauseNotice" class="text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                时空已冻结 (TimeScale = 0)
+              </span>
+            </div>
+
+            <!-- 动态生成的词条卡片容器 -->
+            <div id="optionsContainer" class="space-y-2.5">
+              <!-- JS 动态注入 -->
+            </div>
+
+            <!-- 底部硬伤与架构提示说明 -->
+            <div id="modalWarningTip" class="p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
+              <!-- JS 动态文案 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 致命时序穿透警告条 (仅在普通模式且弹窗开启时如果怪物打了玩家触发) -->
+        <div id="leakAlert" class="hidden absolute top-5 right-5 bg-rose-950/90 border border-rose-600 text-rose-200 px-3 py-1.5 rounded-lg text-xs font-bold animate-bounce z-50 shadow-lg">
+          ⚠️ 致命 Bug：时序穿透！弹窗中怪物还在行动并攻击玩家！
+        </div>
+      </div>
+
+      <!-- 底部玩家实时监控属性栏 -->
+      <div class="p-4 bg-slate-950/90 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
+        <div>
+          <div class="text-slate-400">生命值 (HP)</div>
+          <div id="statHp" class="text-base font-bold text-rose-400">100 / 100</div>
+        </div>
+        <div>
+          <div class="text-slate-400">最终攻击力 (ATK)</div>
+          <div id="statAtk" class="text-base font-bold text-amber-300">15.0</div>
+        </div>
+        <div>
+          <div class="text-slate-400">当前等级 / 经验</div>
+          <div id="statLevel" class="text-base font-bold text-cyan-400">Lv.1 (0 / 100)</div>
+        </div>
+        <div>
+          <div class="text-slate-400">已激活词条修饰器</div>
+          <div id="statModCount" class="text-base font-bold text-emerald-400">0 项 (基础状态)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 深度剖析：普通 AI vs 工业级架构的三大死局对比 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <!-- 差异点 1 -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center gap-2 text-sm font-bold text-amber-400 border-b border-slate-800 pb-2">
+          <span>⏱️ 1. 暂停机制与时序安全</span>
+        </div>
+        <div class="text-xs space-y-2 leading-relaxed">
+          <p class="text-rose-400"><strong>❌ 普通 AI 写法：</strong> 直接设置一个全局布尔值 <code>isPaused = true</code>，但生成器定时器（setInterval/Tick）和异步事件依然在跑。玩家在看选项时，怪还在继续围攻扣血，死在升级弹窗里！</p>
+          <p class="text-emerald-400"><strong>✅ 该 Skill 规范：</strong> 引入严格的 <strong>TimeScale 时间标尺分层调度</strong>，时间冻结时完全阻断所有物体位移计算，UI 接收专属独立输入流，绝不发生时序穿透。</p>
+        </div>
+      </div>
+
+      <!-- 差异点 2 -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center gap-2 text-sm font-bold text-cyan-400 border-b border-slate-800 pb-2">
+          <span>🧮 2. 数值叠加与撤销死局</span>
+        </div>
+        <div class="text-xs space-y-2 leading-relaxed">
+          <p class="text-rose-400"><strong>❌ 普通 AI 写法：</strong> 粗暴的硬编码自增 <code>player.atk += 10</code>。后面一旦加入“临时狂暴 +50% 持续 5 秒”、“受诅咒攻击力减半”，数值乘完加完彻底还原不回去，数值崩盘。</p>
+          <p class="text-emerald-400"><strong>✅ 该 Skill 规范：</strong> 采用 <strong>Modifier 属性管线（Base -&gt; Flat 平加 -&gt; PercentAdd 加成 -&gt; Multiplier 独立乘区）</strong>，每个 Buff 挂载独立 ID，随时精确重算与撤销。</p>
+        </div>
+      </div>
+
+      <!-- 差异点 3 -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="flex items-center gap-2 text-sm font-bold text-indigo-400 border-b border-slate-800 pb-2">
+          <span>🎴 3. 抽卡词条池数据驱动</span>
+        </div>
+        <div class="text-xs space-y-2 leading-relaxed">
+          <p class="text-rose-400"><strong>❌ 普通 AI 写法：</strong> 把 3 个词条硬编码在 if-else 里，经常出现三选一抽出 3 个完全一样的选项，或者在没有主武器时直接刷出【超武进化】。</p>
+          <p class="text-emerald-400"><strong>✅ 该 Skill 规范：</strong> 建立 <strong>数据驱动加权抽卡引擎（Weighted Draft Service）</strong>，支持前置依赖条件校验、互斥词条黑名单与无放回加权抽样。</p>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================
+    // 核心玩法逻辑与两套架构对照系统
+    // ==========================================
+    let mode = 'pro'; // 'vanilla' | 'pro'
+    let timeScale = 1.0;
+    let isPausedVanilla = false; // 普通 AI 用的简陋布尔值
+
+    // 玩家数据模型
+    const player = {
+      x: 380,
+      y: 180,
+      hp: 100,
+      maxHp: 100,
+      baseAtk: 15,
+      atk: 15,
+      exp: 0,
+      maxExp: 100,
+      level: 1,
+      // 专业模式所用的 Modifier 容器
+      modifiers: [],
+      // 拥有能力标签（用于前置条件校验）
+      tags: new Set(['fireball_lv1'])
+    };
+
+    // 怪物列表
+    let enemies = [];
+    // 经验水晶
+    let gems = [];
+    // 投射物
+    let bullets = [];
+
+    // 初始化小怪
+    function spawnEnemy() {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 320;
+      enemies.push({
+        x: player.x + Math.cos(angle) * dist,
+        y: player.y + Math.sin(angle) * dist,
+        hp: 30,
+        speed: 1.2
+      });
+    }
+
+    for (let i = 0; i < 6; i++) spawnEnemy();
+
+    // 自动射击
+    let shootTimer = 0;
+
+    // --- 词条池定义 ---
+    const allUpgrades = [
+      {
+        id: 'atk_flat',
+        title: '磨刀石 (+10 攻击力)',
+        desc: '基础攻击力提升 10 点 (Flat Add)',
+        tier: 'COMMON',
+        weight: 100,
+        condition: () => true,
+        // 普通 AI 写法
+        applyVanilla: (p) => { p.atk += 10; },
+        // 专业 Modifier 写法
+        applyPro: (p) => {
+          p.modifiers.push({ id: 'mod_atk_flat_' + Date.now(), type: 'ATK', calc: 'FLAT', val: 10 });
+        }
+      },
+      {
+        id: 'atk_percent',
+        title: '战神祝福 (攻击力 +30%)',
+        desc: '全额攻击力百分比加成 (Percent Add)',
+        tier: 'RARE',
+        weight: 60,
+        condition: () => true,
+        applyVanilla: (p) => { p.atk = Math.round(p.atk * 1.3); },
+        applyPro: (p) => {
+          p.modifiers.push({ id: 'mod_atk_pct_' + Date.now(), type: 'ATK', calc: 'PERCENT_ADD', val: 0.3 });
+        }
+      },
+      {
+        id: 'fireball_split',
+        title: '分裂火球 (投射物数量 +2)',
+        desc: '需要已解锁基础火球术 (前置依赖)',
+        tier: 'RARE',
+        weight: 50,
+        // 专业模式下校验前置条件：必须拥有 fireball_lv1
+        condition: (p) => p.tags.has('fireball_lv1'),
+        applyVanilla: (p) => { p.atk += 5; },
+        applyPro: (p) => {
+          p.tags.add('fireball_split');
+          p.modifiers.push({ id: 'mod_split', type: 'ATK', calc: 'FLAT', val: 5 });
+        }
+      },
+      {
+        id: 'hellfire_evolution',
+        title: '🔥 究极进化：地狱业火',
+        desc: '超武形态蜕变！需要火球分裂与高额加成前置',
+        tier: 'LEGENDARY',
+        weight: 30,
+        // 苛刻前置条件校验
+        condition: (p) => p.tags.has('fireball_split'),
+        applyVanilla: (p) => { p.atk += 50; },
+        applyPro: (p) => {
+          p.tags.add('hellfire_evolution');
+          p.modifiers.push({ id: 'mod_hellfire', type: 'ATK', calc: 'PERCENT_MULT', val: 1.0 });
+        }
+      }
+    ];
+
+    // 重新计算专业模式属性管线
+    function recalculateStats() {
+      let flat = 0;
+      let pctAdd = 0;
+      let pctMult = 1.0;
+
+      player.modifiers.filter(m => m.type === 'ATK').forEach(m => {
+        if (m.calc === 'FLAT') flat += m.val;
+        if (m.calc === 'PERCENT_ADD') pctAdd += m.val;
+        if (m.calc === 'PERCENT_MULT') pctMult *= (1 + m.val);
+      });
+
+      player.atk = (player.baseAtk + flat) * (1 + pctAdd) * pctMult;
+      updateUI();
+    }
+
+    function updateUI() {
+      document.getElementById('statHp').innerText = `${Math.round(player.hp)} / ${player.maxHp}`;
+      document.getElementById('statAtk').innerText = player.atk.toFixed(1);
+      document.getElementById('statLevel').innerText = `Lv.${player.level} (${player.exp} / ${player.maxExp})`;
+      document.getElementById('statModCount').innerText = `${player.modifiers.length} 项 (管线重算正常)`;
+    }
+
+    // 触发升级弹窗
+    function triggerLevelUp() {
+      player.level++;
+      player.exp = 0;
+      updateUI();
+
+      const modal = document.getElementById('upgradeModal');
+      const container = document.getElementById('optionsContainer');
+      const warningTip = document.getElementById('modalWarningTip');
+      const pauseNotice = document.getElementById('pauseNotice');
+
+      modal.classList.remove('hidden');
+      container.innerHTML = '';
+
+      if (mode === 'vanilla') {
+        // --- ❌ 普通模式的三大硬伤表现 ---
+        isPausedVanilla = true; // 简单标记，但怪物并没有完全冻结
+        timeScale = 1.0; // 内部时序根本没停
+        pauseNotice.className = 'text-[11px] px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800';
+        pauseNotice.innerText = '⚠️ 简陋暂停 (后台异步定时器仍未冻结)';
+        warningTip.innerHTML = `
+          <strong class="text-rose-400">当前处于【普通 AI 典型方案】：</strong><br>
+          1. <strong>时序穿透：</strong> 看看背景！怪物还在逼近，如果不赶紧选，你会在弹窗里被活活打死！<br>
+          2. <strong>抽卡重复：</strong> 词条未去重，甚至前置未满足也直接刷出超武进化；<br>
+          3. <strong>数值破坏：</strong> 直接写死加法，不可撤销，不可做复杂的独立乘区。
+        `;
+
+        // 粗暴的抽卡（可能包含不满足前置条件的超武）
+        const randomOpts = [allUpgrades[0], allUpgrades[1], allUpgrades[3]]; // 强行把未满足前置的超武塞进来
+        randomOpts.forEach(opt => {
+          const btn = document.createElement('div');
+          btn.className = 'p-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg cursor-pointer flex justify-between items-center transition';
+          btn.innerHTML = `
+            <div>
+              <div class="font-bold text-sm text-slate-200">${opt.title}</div>
+              <div class="text-[11px] text-slate-400">${opt.desc}</div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-400">未校验前置</span>
+          `;
+          btn.onclick = () => {
+            opt.applyVanilla(player);
+            closeModal();
+          };
+          container.appendChild(btn);
+        });
+
+      } else {
+        // --- ✅ 专业模式的工业级表现 ---
+        timeScale = 0.0; // 绝对冻结时间标尺
+        document.getElementById('timeStateText').innerText = '时空已锁定 (TimeScale: 0.0)';
+        document.getElementById('timeStateText').className = 'text-amber-400 font-mono font-bold';
+
+        pauseNotice.className = 'text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800';
+        pauseNotice.innerText = '安全冻结 (TimeScale = 0.0)';
+        warningTip.innerHTML = `
+          <strong class="text-emerald-400">当前处于【搭载该 Skill 工业级规范】：</strong><br>
+          1. <strong>安全冻结：</strong> 画面与逻辑严格挂起，怪物与投射物坐标完全锁死，安全接收 UI 选项；<br>
+          2. <strong>依赖过滤与无放回加权抽样：</strong> 自动过滤未满足前置条件的词条，确保三选一不重复；<br>
+          3. <strong>Modifier 属性管线：</strong> 选定后通过属性管线自动重新推导当前最新数值。
+        `;
+
+        // 数据驱动过滤前置
+        const available = allUpgrades.filter(opt => opt.condition(player));
+        // 取至多 3 个
+        const picked = available.slice(0, 3);
+
+        picked.forEach(opt => {
+          const tierColor = opt.tier === 'LEGENDARY' ? 'text-amber-400 border-amber-500/50 bg-amber-950/40' : (opt.tier === 'RARE' ? 'text-indigo-400 border-indigo-500/50 bg-indigo-950/40' : 'text-slate-300 border-slate-700 bg-slate-800/80');
+          const btn = document.createElement('div');
+          btn.className = `p-3 border rounded-lg cursor-pointer flex justify-between items-center transition hover:border-amber-400 ${tierColor}`;
+          btn.innerHTML = `
+            <div>
+              <div class="font-bold text-sm text-white">${opt.title}</div>
+              <div class="text-[11px] text-slate-300">${opt.desc}</div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded bg-slate-900 border border-slate-700 text-amber-300 font-mono">${opt.tier}</span>
+          `;
+          btn.onclick = () => {
+            opt.applyPro(player);
+            recalculateStats();
+            closeModal();
+          };
+          container.appendChild(btn);
+        });
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('upgradeModal').classList.add('hidden');
+      document.getElementById('leakAlert').classList.add('hidden');
+      isPausedVanilla = false;
+      timeScale = 1.0;
+      document.getElementById('timeStateText').innerText = '战斗进行中 (TimeScale: 1.0)';
+      document.getElementById('timeStateText').className = 'text-emerald-400 font-mono font-bold';
+      updateUI();
+    }
+
+    // 强制满经验按钮
+    document.getElementById('btnForceExp').addEventListener('click', () => {
+      player.exp = player.maxExp;
+      triggerLevelUp();
+    });
+
+    // 模式切换
+    const btnVanilla = document.getElementById('btnVanilla');
+    const btnPro = document.getElementById('btnPro');
+    const modeBadge = document.getElementById('modeBadge');
+
+    btnVanilla.addEventListener('click', () => {
+      mode = 'vanilla';
+      btnVanilla.className = 'px-3 py-1.5 text-xs font-bold rounded-md bg-rose-500 text-white shadow-lg transition';
+      btnPro.className = 'px-4 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition';
+      modeBadge.className = 'px-2 py-0.5 rounded font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40';
+      modeBadge.innerText = '⚠️ 当前模式：未使用 Skill (普通 AI 面条逻辑)';
+    });
+
+    btnPro.addEventListener('click', () => {
+      mode = 'pro';
+      btnPro.className = 'px-4 py-1.5 text-xs font-bold rounded-md bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition';
+      btnVanilla.className = 'px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white transition';
+      modeBadge.className = 'px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+      modeBadge.innerText = '🔥 当前模式：搭载 higgsfield-game-generation (专业解耦架构)';
+    });
+
+    // ==========================================
+    // 画布游戏循环
+    // ==========================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      // 决定有效 dt (专业模式下 timeScale=0 则绝对冻结，普通模式下如果是 isPausedVanilla 却依然有微弱时序穿透)
+      let effectiveDt = dt * timeScale;
+
+      if (mode === 'vanilla' && isPausedVanilla) {
+        // 普通 AI 的致命时序穿透 Bug：虽然有 isPaused 变量，但代码中其他模块依然以 0.5 速度在逼近打人
+        effectiveDt = dt * 0.45;
+        document.getElementById('leakAlert').classList.remove('hidden');
+      }
+
+      // 更新逻辑
+      if (effectiveDt > 0) {
+        // 自动射击
+        shootTimer += effectiveDt;
+        if (shootTimer >= 0.5 && enemies.length > 0) {
+          shootTimer = 0;
+          const target = enemies[0];
+          const angle = Math.atan2(target.y - player.y, target.x - player.x);
+          bullets.push({
+            x: player.x,
+            y: player.y,
+            vx: Math.cos(angle) * 350,
+            vy: Math.sin(angle) * 350,
+            life: 1.2
+          });
+        }
+
+        // 投射物飞行与碰撞
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const b = bullets[i];
+          b.x += b.vx * effectiveDt;
+          b.y += b.vy * effectiveDt;
+          b.life -= effectiveDt;
+
+          // 碰撞怪物
+          for (let j = enemies.length - 1; j >= 0; j--) {
+            const e = enemies[j];
+            const dist = Math.hypot(b.x - e.x, b.y - e.y);
+            if (dist < 18) {
+              e.hp -= player.atk;
+              bullets.splice(i, 1);
+              if (e.hp <= 0) {
+                // 掉落经验
+                gems.push({ x: e.x, y: e.y, exp: 35 });
+                enemies.splice(j, 1);
+                spawnEnemy();
+              }
+              break;
+            }
+          }
+          if (b.life <= 0 && bullets[i] === b) bullets.splice(i, 1);
+        }
+
+        // 怪物逼近玩家
+        enemies.forEach(e => {
+          const angle = Math.atan2(player.y - e.y, player.x - e.x);
+          e.x += Math.cos(angle) * e.speed * 60 * effectiveDt;
+          e.y += Math.sin(angle) * e.speed * 60 * effectiveDt;
+
+          // 撞击玩家扣血
+          if (Math.hypot(e.x - player.x, e.y - player.y) < 22) {
+            player.hp = Math.max(0, player.hp - 15 * effectiveDt);
+            updateUI();
+          }
+        });
+
+        // 经验宝石拾取
+        for (let i = gems.length - 1; i >= 0; i--) {
+          const g = gems[i];
+          const dist = Math.hypot(player.x - g.x, player.y - g.y);
+          if (dist < 80) {
+            // 磁吸
+            g.x += (player.x - g.x) * 8 * effectiveDt;
+            g.y += (player.y - g.y) * 8 * effectiveDt;
+          }
+          if (dist < 15) {
+            player.exp += g.exp;
+            gems.splice(i, 1);
+            if (player.exp >= player.maxExp) {
+              triggerLevelUp();
+            }
+            updateUI();
+          }
+        }
+      }
+
+      // --- 渲染 ---
+      ctx.fillStyle = '#0a0e1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 网格地面
+      ctx.strokeStyle = '#141d30';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 30) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // 绘制经验水晶
+      gems.forEach(g => {
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(g.x, g.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 绘制投射物
+      bullets.forEach(b => {
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 绘制小怪
+      enemies.forEach(e => {
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(e.x - 10, e.y - 10, 20, 20);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(e.x - 10, e.y - 10, 20, 20);
+      });
+
+      // 绘制玩家
+      ctx.fillStyle = '#3b82f6';
+      ctx.fillRect(player.x - 14, player.y - 14, 28, 28);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(player.x - 14, player.y - 14, 28, 28);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+    updateUI();
+  </script>
+</body>
+</html>

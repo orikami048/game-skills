@@ -9,7 +9,23 @@
 
 本项目所有 Skill 均经过严格的场景化实机测试，以下为挂载对应 Skill 与普通 AI 生成效果的残酷对比：
 
-### 1. `game-ui-design`：16-Bit 像素游戏 UI 实机动图演示
+### 1. `higgsfield-game-generation`：肉鸽玩法核心循环实机动态对比
+
+![肉鸽核心循环实机动图对比](assets/loop_comparison.gif)
+
+* **❌ 前半段（未使用 Skill - 普通 AI 典型方案）**：
+  * **时序穿透（Pause Leak Bug）**：虽然写了 `isPaused = true`，但后台定时器未受控，玩家在弹窗选技能时被怪物围攻打死！
+  * **词条硬编码与前置缺失**：三选一出现重复词条，甚至在没有主武器时直接刷出【超武进化】；
+  * **数值破坏**：硬编码自增 `atk += 10`，无法叠加临时 Buff、百分比加成与撤销。
+* **✅ 后半段（搭载 `higgsfield-game-generation` 工业级架构）**：
+  * **时钟标尺绝对安全冻结**：引入严格的 **TimeScale = 0.0** 分层调度，怪物与投射物绝对锁死休眠，安全接收 UI 输入；
+  * **数据驱动加权抽卡**：自动校验前置条件依赖（如拥有火球才可解锁分裂），无放回加权抽样绝对不重复；
+  * **Modifier 属性四层管线**：Base -> Flat -> PercentAdd -> Multiplier，数值严密重算无副作用。
+* 🎮 **本地交互试玩原型**：双击运行 [`prototypes/loop_showcase.html`](prototypes/loop_showcase.html)
+
+---
+
+### 2. `game-ui-design`：16-Bit 像素游戏 UI 实机动图演示
 
 ![16-Bit UI 实机对比动图](assets/ui_comparison.gif)
 
