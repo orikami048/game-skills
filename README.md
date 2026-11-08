@@ -82,7 +82,21 @@
 
 ---
 
-### 5. `game-feel`：动作游戏打击感与微反馈实机动态对比（全循环动图）
+### 5. `game-design-theory`：游戏设计理论与心流体验模型（静态架构参考）
+
+![游戏设计理论与心流体验模型参考图](assets/theory_comparison.png)
+
+* **❌ 未使用 Skill（拍脑袋线性数值与单一最优解）**：难度直线飙升，前 60 秒平淡无聊，随后突然刺穿心流通道撞进红色【挫败弃游区】，玩家被秒杀愤怒弃游；升级选项存在闭眼必选的绝对最优解，策略深度归零；
+* **✅ 搭载 `game-design-theory`（工业级策划理论）**：
+  * **米哈里心流黄金通道（Flow Channel）**：难度呈**锯齿形波浪上升（Tension & Release）**，高压波次消耗资源制造心跳，宝箱与安全休整释放成就感，始终锁定心流通道；
+  * **席德梅尔“有意义的抉择”（Meaningful Choices）**：选项绝无最优解，全部采用正负权衡（Trade-offs，如狂战士流高爆发但高易伤、贪婪流多金币但降移速），每个选择都在定义流派（Build）；
+  * **水龙头与排水孔（Tap & Sink）**：双循环通胀拦截模型，货币长期保值，杜绝后期金币爆炸通胀。
+* 🎮 **在线直接试玩 (GitHub Pages)**：[点击在线体验心流曲线与抉择试验台](https://orikami048.github.io/game-skills/prototypes/theory_showcase.html)  
+  *(或本地点击：[http://localhost:8088/prototypes/theory_showcase.html](http://localhost:8088/prototypes/theory_showcase.html))*
+
+---
+
+### 6. `game-feel`：动作游戏打击感与微反馈实机动态对比（全循环动图）
 
 ![Game Feel 命中受击实机高燃动图对比](assets/feel_comparison.gif)
 
@@ -124,6 +138,7 @@ game-skills/
 │   ├── loop_showcase.html         # 肉鸽核心循环试验台 (零依赖/时空冻结/抽卡)
 │   ├── engine_showcase.html       # 引擎底层架构试验台 (800实体压测/空间哈希/对象池)
 │   ├── developer_showcase.html    # 通用开发基建试验台 (跨端输入抽象/固定步长防穿模)
+│   ├── theory_showcase.html       # 策划理论心流试验台 (心流黄金通道/正负权衡抉择)
 │   ├── ui_showcase.html           # 16-Bit UI 交互原型 (SFC 边框/4px下沉/扫描线)
 │   └── feel_showcase.html         # 60FPS 战斗打击面试验台 (带音效与参数开关)
 └── skills/                        # 核心技能正本
@@ -134,6 +149,9 @@ game-skills/
     │   ├── SKILL.md
     │   └── comparison.png
     ├── game-developer/            # 通用游戏开发基建、输入抽象与固定步长防穿模
+    │   ├── SKILL.md
+    │   └── comparison.png
+    ├── game-design-theory/        # 游戏设计理论、心流通道模型与有意义的抉择
     │   ├── SKILL.md
     │   └── comparison.png
     ├── game-ui-design/            # 16-Bit 游戏 UI 规范与九宫格边框

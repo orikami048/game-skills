@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏设计理论与心流模拟试验台 (game-design-theory)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #030712;
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+    
+    .header-card {
+      background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px 20px;
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;
+    }
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+      background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);
+      margin-bottom: 4px;
+    }
+    .title { font-size: 18px; font-weight: 800; color: #fff; }
+    .subtitle { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+    .mode-switch {
+      display: flex; background: #030712; padding: 4px; border-radius: 8px; border: 1px solid #1f2937; gap: 6px;
+    }
+    .btn-mode {
+      padding: 6px 14px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: 700;
+      transition: all 0.15s ease; color: #9ca3af; background: transparent;
+    }
+    .btn-mode.active-theory {
+      background: #0284c7; color: #ffffff; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+    .btn-mode.active-vanilla {
+      background: #ef4444; color: #ffffff; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
+
+    .viewport-box {
+      background: #111827; border: 2px solid #1f2937; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); position: relative;
+    }
+    .viewport-header {
+      padding: 12px 18px; background: rgba(17, 24, 39, 0.85); border-bottom: 1px solid #1f2937;
+      display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+    }
+
+    .canvas-wrap {
+      display: flex; justify-content: center; background: #050811; padding: 14px; position: relative;
+    }
+    canvas {
+      width: 100%; max-width: 800px; height: 340px; border-radius: 8px; border: 1px solid #1f2937;
+    }
+
+    /* 决策抉择交互卡片对比区 */
+    .dilemma-section {
+      background: #090d16; border-top: 1px solid #1f2937; padding: 16px 20px;
+    }
+    .dilemma-title {
+      font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 10px; display: flex; justify-content: space-between;
+    }
+    .cards-row {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+    .dilemma-card {
+      background: #111827; border: 1px solid #334155; border-radius: 8px; padding: 12px;
+      cursor: pointer; transition: all 0.15s ease;
+    }
+    .dilemma-card:hover {
+      border-color: #38bdf8; transform: translateY(-2px);
+    }
+    .card-tag {
+      font-size: 10px; font-family: monospace; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+      display: inline-block; margin-bottom: 6px;
+    }
+    .card-name { font-size: 13px; font-weight: 700; color: #fff; }
+    .card-pros { font-size: 11px; color: #4ade80; margin-top: 4px; }
+    .card-cons { font-size: 11px; color: #f87171; margin-top: 2px; }
+
+    /* 实时监控仪表盘 */
+    .dashboard-bar {
+      background: #020617; border-top: 1px solid #1f2937; padding: 14px 20px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; font-family: monospace; font-size: 11px;
+    }
+    .dash-label { color: #9ca3af; margin-bottom: 2px; }
+    .dash-val { font-size: 16px; font-weight: 800; }
+
+    /* 深度剖析卡片 */
+    .grid-cards {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    .analysis-card {
+      background: #111827; border: 1px solid #1f2937; border-radius: 10px; padding: 14px 16px;
+      font-size: 12px; line-height: 1.5;
+    }
+    .analysis-title {
+      font-weight: 700; color: #38bdf8; margin-bottom: 8px; border-bottom: 1px solid #1f2937; padding-bottom: 6px;
+    }
+    @media (max-width: 768px) {
+      .cards-row { grid-template-columns: 1fr; }
+      .dashboard-bar { grid-template-columns: repeat(2, 1fr); }
+      .grid-cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- 顶部导航 -->
+    <div class="header-card">
+      <div>
+        <div class="badge">Skill 06 实机理论评测</div>
+        <div class="title">game-design-theory：游戏设计理论与心流体验</div>
+        <div class="subtitle">心流通道模型 (Flow)、锯齿形张弛曲线 (Tension-Release)、正负权衡抉择与经济水龙头</div>
+      </div>
+
+      <div class="mode-switch">
+        <button id="btnVanilla" class="btn-mode">
+          ❌ 未使用 Skill (拍脑袋数值/陡增挫败)
+        </button>
+        <button id="btnTheory" class="btn-mode active-theory">
+          🔥 搭载 game-design-theory (心流波浪曲线)
+        </button>
+      </div>
+    </div>
+
+    <!-- 核心画布与心流模型图表 -->
+    <div class="viewport-box">
+      <div class="viewport-header">
+        <div id="modeStatusText">
+          <strong style="color: #38bdf8;">当前理论模型：🔥 搭载 game-design-theory (米哈里心流黄金通道 + 张弛节律)</strong>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="btnReplay" style="background: #1e293b; color: #fff; border: 1px solid #334155; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;">
+            🔄 重新推演心流历程
+          </button>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="flowCanvas" width="800" height="340"></canvas>
+      </div>
+
+      <!-- 决策设计对照：席德梅尔“有意义的抉择” -->
+      <div class="dilemma-section">
+        <div class="dilemma-title">
+          <span>⚖️ 局内升级设计：普通 AI 的单一无脑最优解 vs 顶级策划的正负权衡抉择 (Trade-offs)</span>
+          <span id="dilemmaModeTag" style="font-size: 11px; color: #38bdf8;">[搭载 Skill 模式]</span>
+        </div>
+
+        <div id="cardsContainer" class="cards-row">
+          <!-- 动态渲染卡片 -->
+        </div>
+      </div>
+
+      <!-- 实时心智指标 -->
+      <div class="dashboard-bar">
+        <div>
+          <div class="dash-label">玩家心理状态判定</div>
+          <div id="valState" class="dash-val" style="color: #4ade80;">沉浸心流区 (Flow)</div>
+        </div>
+        <div>
+          <div class="dash-label">张弛周期波长 (Tension)</div>
+          <div id="valCycle" class="dash-val" style="color: #38bdf8;">45秒 压迫 / 15秒 释放</div>
+        </div>
+        <div>
+          <div class="dash-label">决策张力 (Decision Tension)</div>
+          <div id="valChoices" class="dash-val" style="color: #fbbf24;">高 (正负兼备/无最优解)</div>
+        </div>
+        <div>
+          <div class="dash-label">经济水龙头通胀率</div>
+          <div id="valInflation" class="dash-val" style="color: #34d399;">受控 (对数收益+消耗排水)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 理论深度剖析卡片 -->
+    <div class="grid-cards">
+      <div class="analysis-card">
+        <div class="analysis-title">🌊 1. 心流通道 (Flow Channel) 与动态张弛</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 难度线性直线上升。前 60 秒平淡无聊，随后突然刷出无法抵御的高伤怪，玩家被一击秒杀，直接产生强烈挫败感而弃游（Rage Quit）。</p>
+        <p style="color: #38bdf8;"><strong>✅ 专项 Skill：</strong> 遵循 <strong>米哈里心流理论（Flow Theory）</strong>。难度呈锯齿形波浪上升：高压紧张波次（消耗资源）-&gt; 宝箱释放与割草休整（满足感）-&gt; 技能成长，始终锁定黄金通道。</p>
+      </div>
+
+      <div class="analysis-card">
+        <div class="analysis-title">⚖️ 2. 席德梅尔“有意义的抉择” (Meaningful Choices)</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 设计出带有绝对最优解的选项（如 A: 攻击+10, B: 攻击+3）。毫无策略决策价值，玩家形成闭眼套路，游戏迅速变得枯燥无味。</p>
+        <p style="color: #38bdf8;"><strong>✅ 专项 Skill：</strong> 强制制造 <strong>正负权衡（Trade-offs）</strong>。例如“攻击力+50% 但受到伤害增加30%（玻璃大炮）”、“立刻获得300金币但下3波无法回血”，每个选择都定义独特流派。</p>
+      </div>
+
+      <div class="analysis-card">
+        <div class="analysis-title">🚰 3. 经济数值：水龙头与排水孔 (Tap & Sink)</div>
+        <p style="color: #f87171; margin-bottom: 6px;"><strong>❌ 普通 AI：</strong> 只有掉落产出（Tap），没有合理的排水孔（Sink）。游戏运行 10 分钟后金币通胀爆炸，商店被搬空，数值崩溃，失去动力。</p>
+        <p style="color: #38bdf8;"><strong>✅ 专项 Skill：</strong> 建立 <strong>双循环通胀拦截模型</strong>。边际效用递减（Diminishing Returns）+ 消耗型词缀重铸 + 利息门槛，货币长期保值并驱动核心循环。</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const canvas = document.getElementById('flowCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let mode = 'theory'; // 'vanilla' | 'theory'
+    let progress = 0; // 0 ~ 100 推演进度
+
+    // 绘制心流坐标系与历史曲线
+    function drawFlowChart() {
+      ctx.fillStyle = '#060a14';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const padding = 50;
+
+      // 1. 绘制三大心理区域背景
+      // 顶部：焦虑挫败区 (Anxiety / Frustration)
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(padding, h - padding);
+      ctx.lineTo(padding, padding);
+      ctx.lineTo(w - padding, padding);
+      ctx.closePath();
+      ctx.fill();
+
+      // 底部：枯燥无聊区 (Boredom)
+      ctx.fillStyle = 'rgba(100, 116, 139, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(padding, h - padding);
+      ctx.lineTo(w - padding, h - padding);
+      ctx.lineTo(w - padding, padding + 120);
+      ctx.closePath();
+      ctx.fill();
+
+      // 中间：绿色心流黄金通道 (Flow Channel)
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.12)';
+      ctx.beginPath();
+      ctx.moveTo(padding, h - padding);
+      ctx.lineTo(w - padding, padding + 60);
+      ctx.lineTo(w - padding, padding + 140);
+      ctx.lineTo(padding, h - padding);
+      ctx.closePath();
+      ctx.fill();
+
+      // 区域文字标注
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      ctx.fillStyle = '#f87171';
+      ctx.fillText('🔴 焦虑挫败区 (难度 >> 技能，导致弃游 Rage Quit)', padding + 20, padding + 30);
+
+      ctx.fillStyle = '#34d399';
+      ctx.fillText('🟢 心流黄金通道 (Flow: 挑战匹配技能，极度沉浸)', padding + 120, h / 2 + 10);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('⚪ 枯燥无聊区 (技能 >> 难度，毫无挑战导致乏味)', w - 340, h - padding - 20);
+
+      // 坐标轴
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      // Y轴 (挑战难度)
+      ctx.moveTo(padding, padding);
+      ctx.lineTo(padding, h - padding);
+      // X轴 (玩家技能/时间)
+      ctx.lineTo(w - padding, h - padding);
+      ctx.stroke();
+
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillText('挑战难度 (Challenge) ▲', padding - 10, padding - 15);
+      ctx.fillText('玩家技能增长 & 游戏时间 (Player Skill & Time) ►', w - 300, h - padding + 30);
+
+      // 2. 绘制难度与心理体验曲线
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
+      const startX = padding;
+      const startY = h - padding;
+      const maxLen = (w - padding * 2) * (progress / 100);
+
+      if (mode === 'vanilla') {
+        // --- ❌ 普通 AI：平缓后陡增，直接刺穿心流通道撞进挫败区 ---
+        ctx.strokeStyle = '#ef4444';
+        for (let x = 0; x <= maxLen; x += 4) {
+          const t = x / (w - padding * 2);
+          // 指数陡增曲线
+          const yVal = Math.pow(t, 2.2) * (h - padding * 2);
+          const drawY = startY - yVal;
+          if (x === 0) ctx.moveTo(startX + x, drawY);
+          else ctx.lineTo(startX + x, drawY);
+        }
+        ctx.stroke();
+
+        // 终点状态标注
+        if (progress > 60) {
+          const currentT = maxLen / (w - padding * 2);
+          const curY = startY - Math.pow(currentT, 2.2) * (h - padding * 2);
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(startX + maxLen, curY, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillText('💥 恶性挫败点！第60秒秒杀玩家', startX + maxLen - 80, curY - 14);
+        }
+      } else {
+        // --- ✅ 专项理论：锯齿波浪上升心流曲线 (Tension & Release) ---
+        ctx.strokeStyle = '#38bdf8';
+        for (let x = 0; x <= maxLen; x += 4) {
+          const t = x / (w - padding * 2);
+          // 锯齿波 + 线性抬升
+          const wave = Math.sin(t * Math.PI * 6) * 18;
+          const trend = t * (h - padding * 2) * 0.75;
+          const drawY = startY - (trend + wave);
+          if (x === 0) ctx.moveTo(startX + x, drawY);
+          else ctx.lineTo(startX + x, drawY);
+        }
+        ctx.stroke();
+
+        // 终点光点
+        if (progress > 5) {
+          const currentT = maxLen / (w - padding * 2);
+          const wave = Math.sin(currentT * Math.PI * 6) * 18;
+          const trend = currentT * (h - padding * 2) * 0.75;
+          const curY = startY - (trend + wave);
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(startX + maxLen, curY, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillText('✨ 完美维持在心流通道中', startX + maxLen - 60, curY - 14);
+        }
+      }
+
+      // 更新推演进度
+      if (progress < 100) progress += 0.8;
+      requestAnimationFrame(drawFlowChart);
+    }
+    requestAnimationFrame(drawFlowChart);
+
+    // ==========================================
+    // 决策对比卡片渲染 (席德梅尔有意义的抉择)
+    // ==========================================
+    const cardsContainer = document.getElementById('cardsContainer');
+    const dilemmaModeTag = document.getElementById('dilemmaModeTag');
+
+    const vanillaCards = [
+      {
+        tag: '普通选项',
+        tagColor: '#64748b',
+        name: '锋利强化 I',
+        pros: '🟢 攻击力 +5 点',
+        cons: '无负面影响'
+      },
+      {
+        tag: '绝大优势 (脑子不用想)',
+        tagColor: '#ef4444',
+        name: '锋利强化 III (闭眼无脑选)',
+        pros: '🟢 攻击力 +25 点 (完爆其他)',
+        cons: '❌ 导致其他选项毫无意义'
+      },
+      {
+        tag: '垃圾选项',
+        tagColor: '#64748b',
+        name: '微弱强化',
+        pros: '🟢 攻击力 +2 点',
+        cons: '根本没人选'
+      }
+    ];
+
+    const theoryCards = [
+      {
+        tag: '狂战士流派 (Glass Cannon)',
+        tagColor: '#f97316',
+        name: '血之契约',
+        pros: '🟢 全局攻击力 +60% (巨幅爆发)',
+        cons: '🔴 受到的一切伤害提升 35%'
+      },
+      {
+        tag: '贪婪发育流 (Greed / Economy)',
+        tagColor: '#fbbf24',
+        name: '点金手秘卷',
+        pros: '🟢 击杀金币获取量翻倍 (+100%)',
+        cons: '🔴 本次关卡内移速降低 20%'
+      },
+      {
+        tag: '绝地反击流 (Clutch Defense)',
+        tagColor: '#38bdf8',
+        name: '死线本能',
+        pros: '🟢 生命低于30%时触发0.5倍速子弹时间',
+        cons: '🔴 最大生命值上限扣减 25 点'
+      }
+    ];
+
+    function renderCards() {
+      cardsContainer.innerHTML = '';
+      const list = mode === 'vanilla' ? vanillaCards : theoryCards;
+      dilemmaModeTag.innerText = mode === 'vanilla' ? '[普通 AI：无脑最优解，策略死局]' : '[搭载 Skill：席德梅尔正负权衡抉择]';
+      dilemmaModeTag.style.color = mode === 'vanilla' ? '#f87171' : '#38bdf8';
+
+      list.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'dilemma-card';
+        card.innerHTML = `
+          <div class="card-tag" style="background: ${c.tagColor}22; color: ${c.tagColor}; border: 1px solid ${c.tagColor}44;">${c.tag}</div>
+          <div class="card-name">${c.name}</div>
+          <div class="card-pros">${c.pros}</div>
+          <div class="card-cons">${c.cons}</div>
+        `;
+        cardsContainer.appendChild(card);
+      });
+
+      // 更新仪表盘
+      if (mode === 'vanilla') {
+        document.getElementById('valState').innerText = '挫败弃游区 (Anxiety)';
+        document.getElementById('valState').style.color = '#f87171';
+        document.getElementById('valCycle').innerText = '无节律 (线性暴增秒杀)';
+        document.getElementById('valChoices').innerText = '零 (存在绝对最优解)';
+        document.getElementById('valChoices').style.color = '#f87171';
+        document.getElementById('valInflation').innerText = '恶性通胀 (后期买空)';
+        document.getElementById('valInflation').style.color = '#f87171';
+      } else {
+        document.getElementById('valState').innerText = '沉浸心流区 (Flow State)';
+        document.getElementById('valState').style.color = '#34d399';
+        document.getElementById('valCycle').innerText = '45秒 压迫 / 15秒 释放';
+        document.getElementById('valChoices').innerText = '高 (正负权衡/定义流派)';
+        document.getElementById('valChoices').style.color = '#fbbf24';
+        document.getElementById('valInflation').innerText = '动态平衡 (双循环水龙头)';
+        document.getElementById('valInflation').style.color = '#38bdf8';
+      }
+    }
+
+    renderCards();
+
+    // 模式切换绑定
+    const btnVanilla = document.getElementById('btnVanilla');
+    const btnTheory = document.getElementById('btnTheory');
+    const modeStatusText = document.getElementById('modeStatusText');
+    const btnReplay = document.getElementById('btnReplay');
+
+    btnVanilla.addEventListener('click', () => {
+      mode = 'vanilla';
+      btnVanilla.className = 'btn-mode active-vanilla';
+      btnTheory.className = 'btn-mode';
+      modeStatusText.innerHTML = '<strong style="color: #f87171;">当前理论模型：❌ 未使用 Skill (拍脑袋数值 / 单一最优解 / 挫败弃游)</strong>';
+      progress = 0;
+      renderCards();
+    });
+
+    btnTheory.addEventListener('click', () => {
+      mode = 'theory';
+      btnTheory.className = 'btn-mode active-theory';
+      btnVanilla.className = 'btn-mode';
+      modeStatusText.innerHTML = '<strong style="color: #38bdf8;">当前理论模型：🔥 搭载 game-design-theory (米哈里心流黄金通道 + 张弛节律)</strong>';
+      progress = 0;
+      renderCards();
+    });
+
+    btnReplay.addEventListener('click', () => {
+      progress = 0;
+    });
+  </script>
+</body>
+</html>
